@@ -3,6 +3,8 @@ import { StatusBar, useColorScheme } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { Provider } from 'react-redux';
+
 import HomeScreen from './src/screens/HomeScreen';
 import SuccessScreen from './src/screens/SuccessScreen'; 
 import FaceRecongition from './src/screens/FaceRecongition'; 
@@ -10,10 +12,12 @@ import FaceAndFingerEnrollmentScreen from './src/screens/FaceAndFingerEnrollment
 import SplashScreen from './src/screens/SplashScreen';
 import DashboardScreen from './src/screens/DashboardScreen';
 import DocumentUploadScreen from './src/screens/DocumentUploadScreen';
-import type { RootStackParamList } from './src/screens/HomeScreen'; //SplashScreen
 
-import { Provider } from 'react-redux';
+
+import type { RootStackParamList } from './src/screens/HomeScreen'; 
 import { store } from './src/redux/store';
+
+
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 

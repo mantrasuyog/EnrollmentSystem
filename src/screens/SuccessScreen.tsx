@@ -24,6 +24,7 @@ import SuccessRegistrationCard from "../components/SuccessRegistrationCard";
 import SuccessEnrollmentDetailsCard from "../components/SuccessEnrollmentDetailsCard";
 import SuccessInfoCard from "../components/SuccessInfoCard";
 import type { RootStackParamList } from "./HomeScreen";
+import { colors } from '../common/colors';
 
 const fonts = {
   bold: "Sen-Bold",
@@ -241,7 +242,7 @@ const SuccessScreen = () => {
 
   return (
     <View style={styles.container}>
-      <StatusBar backgroundColor="#F8F9FA" barStyle="dark-content" />
+      <StatusBar backgroundColor={colors.bgLight} barStyle="dark-content" />
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}
@@ -326,18 +327,18 @@ const SuccessScreen = () => {
             icon="ℹ️"
             title="Keep This Safe"
             description="Save your registration number for future support, course access, and certificate claims."
-            backgroundColor="#ECF2FF"
-            borderColor="#BFDBFE"
-            iconBgColor="#3B82F6"
+            backgroundColor={colors.infoBg1}
+            borderColor={colors.infoBorder1}
+            iconBgColor={colors.bluePrimary}
           />
 
           <SuccessInfoCard
             icon="🎧"
             title="Need Help?"
             description="Our support team is available 24/7. Email: support@mantraidentity.com"
-            backgroundColor="#F3E8FF"
-            borderColor="#E9D5FF"
-            iconBgColor="#A855F7"
+            backgroundColor={colors.infoBg2}
+            borderColor={colors.infoBorder2}
+            iconBgColor={colors.violet1}
           />
         </Animated.View>
 
@@ -490,7 +491,7 @@ const SuccessScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F8F9FA" },
+  container: { flex: 1, backgroundColor: colors.bgLight },
   scrollContent: { paddingHorizontal: 16, paddingVertical: 24 },
 
   decorativeCircle1: {
@@ -507,7 +508,7 @@ const styles = StyleSheet.create({
     width: "100%",
     height: "100%",
     borderRadius: 40,
-    backgroundColor: "#667EEA",
+    backgroundColor: colors.purple1,
   },
 
   decorativeCircle2: {
@@ -524,13 +525,13 @@ const styles = StyleSheet.create({
     width: "100%",
     height: "100%",
     borderRadius: 30,
-    backgroundColor: "#EC4899",
+    backgroundColor: colors.pink3,
   },
 
   headingContainer: { alignItems: "center", marginBottom: 20 },
   mainHeading: {
     fontSize: 22,
-    color: "#1F2937",
+    color: colors.darkText,
     marginBottom: 8,
     fontFamily: fonts.bold,
   },
@@ -539,25 +540,25 @@ const styles = StyleSheet.create({
     width: width * 0.75,
     fontFamily: fonts.regular,
     textAlign: "center",
-    color: "#6B7280",
+    color: colors.midGray,
   },
 
   detailsButtonContainer: { marginVertical: 14 },
   detailsButton: {
-    backgroundColor: "#F3F4F6",
+    backgroundColor: colors.grayLight2,
     padding: 12,
     borderRadius: 10,
     flexDirection: "row",
     borderWidth: 1,
-    borderColor: "#E5E7EB",
+    borderColor: colors.borderGray,
   },
 
   detailsButtonIcon: { fontSize: 22 },
   detailsButtonText: { fontSize: 14, fontFamily: fonts.bold },
-  detailsButtonSubtext: { fontSize: 11, color: "#6B7280",fontFamily: fonts.regular},
+  detailsButtonSubtext: { fontSize: 11, color: colors.midGray,fontFamily: fonts.regular},
   detailsButtonArrow: { fontSize: 18, marginLeft: "auto" },
 
-  detailLabel: { fontSize: 11, color: "#9CA3AF",fontFamily: fonts.regular},
+  detailLabel: { fontSize: 11, color: colors.placeholderGray,fontFamily: fonts.regular},
 
   buttonsContainer: { marginTop: 16, gap: 10 },
 
@@ -568,7 +569,7 @@ const styles = StyleSheet.create({
   },
 
   primaryButton: {
-    backgroundColor: "#10B981",
+    backgroundColor: colors.green1,
     padding: 12,
     borderRadius: 10,
     flexDirection: "row",
@@ -576,14 +577,14 @@ const styles = StyleSheet.create({
     gap: 8,
   },
 
-  primaryButtonText: { color: "#fff", fontSize: 14, fontFamily: fonts.bold },
-  primaryButtonIcon: { color: "#fff", fontSize: 16 },
+  primaryButtonText: { color: colors.white, fontSize: 14, fontFamily: fonts.bold },
+  primaryButtonIcon: { color: colors.white, fontSize: 16 },
 
   secondaryButton: {
     padding: 12,
     borderRadius: 10,
     borderWidth: 1.5,
-    borderColor: "#E5E7EB",
+    borderColor: colors.borderGray,
   },
 
   secondaryButtonText: { fontSize: 14, fontFamily: fonts.bold },
@@ -597,10 +598,10 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end",
   },
 
-  modalBackground: { flex: 1, backgroundColor: "rgba(0,0,0,0.6)" },
+  modalBackground: { flex: 1, backgroundColor: colors.overlayBlack60 },
 
   modalContent: {
-    backgroundColor: "#fff",
+    backgroundColor: colors.white,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     maxHeight: "90%",
@@ -613,7 +614,7 @@ const styles = StyleSheet.create({
     top: 10,
     right: 12,
     padding: 6,
-    backgroundColor: "#F3F4F6",
+    backgroundColor: colors.grayLight2,
     borderRadius: 16,
     zIndex: 20,
   },
@@ -624,14 +625,14 @@ const styles = StyleSheet.create({
 
   modalHeader: { marginBottom: 12 },
   modalTitle: { fontSize: 18, fontFamily: fonts.bold },
-  modalSubtitle: { fontSize: 12, color: "#6B7280",fontFamily: fonts.regular },
+  modalSubtitle: { fontSize: 12, color: colors.midGray,fontFamily: fonts.regular },
 
   profileImageContainer: { alignItems: "center", marginVertical: 12 },
   profileImage: {
     width: 70,
     height: 70,
     borderRadius: 35,
-    backgroundColor: "#F3F4F6",
+    backgroundColor: colors.grayLight2,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -640,7 +641,7 @@ const styles = StyleSheet.create({
     height: 70,
     borderRadius: 35,
     borderWidth: 2,
-    borderColor: "#667eea",
+    borderColor: colors.purple1,
   },
   profileImagePlaceholder: { fontSize: 36 },
 
@@ -650,14 +651,14 @@ const styles = StyleSheet.create({
   detailItem: {
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: "#F3F4F6",
+    borderBottomColor: colors.grayLight2,
   },
 
-  detailValueText: { fontSize: 13, fontFamily: fonts.bold, color: "#1F2937" },
+  detailValueText: { fontSize: 13, fontFamily: fonts.bold, color: colors.darkText },
 
   documentsSection: { paddingBottom: 18 },
   documentCard: {
-    backgroundColor: "#F9FAFB",
+    backgroundColor: colors.bgLight,
     padding: 12,
     borderRadius: 10,
     flexDirection: "row",
@@ -668,7 +669,7 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 10,
-    backgroundColor: "#F3F4F6",
+    backgroundColor: colors.grayLight2,
     justifyContent: "center",
     alignItems: "center",
     marginRight: 10,
@@ -677,13 +678,13 @@ const styles = StyleSheet.create({
   documentIcon: { fontSize: 18 },
   documentInfo: { flex: 1 },
   documentName: { fontSize: 13, fontFamily: fonts.semiBold },
-  documentStatus: { fontSize: 11, color: "#10B981",fontFamily: fonts.semiBold },
+  documentStatus: { fontSize: 11, color: colors.green1,fontFamily: fonts.semiBold },
 
   viewButton: { padding: 5, paddingHorizontal: 10 },
-  viewButtonText: { fontSize: 12, color: "#2563EB",fontFamily: fonts.semiBold,backgroundColor:"#E0E7FF",borderRadius:4 ,padding:4 },
+  viewButtonText: { fontSize: 12, color: colors.blue600,fontFamily: fonts.semiBold,backgroundColor:colors.blueLightBg,borderRadius:4 ,padding:4 },
 
   modalCloseButton: {
-    backgroundColor: "#10B981",
+    backgroundColor: colors.green1,
     padding: 10,
     borderRadius: 10,
     alignItems: "center",
@@ -692,7 +693,7 @@ const styles = StyleSheet.create({
   },
 
   modalCloseButtonText: {
-    color: "white",
+    color: colors.white,
     fontSize: 14,
     fontFamily: fonts.bold,
   },
@@ -714,11 +715,11 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: "rgba(0,0,0,0.8)",
+    backgroundColor: colors.overlayBlack80,
   },
 
   documentPreviewContent: {
-    backgroundColor: "#fff",
+    backgroundColor: colors.white,
     borderRadius: 16,
     width: "85%",
     maxHeight: "70%",
@@ -745,13 +746,13 @@ const styles = StyleSheet.create({
   documentPreviewTitle: {
     fontSize: 16,
     fontFamily: fonts.bold,
-    color: "#1F2937",
+    color: colors.darkText,
     marginBottom: 3,
   },
 
   documentPreviewSubtitle: {
     fontSize: 12,
-    color: "#6B7280",
+    color: colors.midGray,
     fontFamily: fonts.semiBold,
   },
 
@@ -767,19 +768,19 @@ const styles = StyleSheet.create({
     top: 10,
     right: 10,
     padding: 6,
-    backgroundColor: "#F3F4F6",
+    backgroundColor: colors.grayLight2,
     borderRadius: 16,
     zIndex: 102,
   },
 
   documentPreviewCloseIcon: {
     fontSize: 16,
-    color: "#1F2937",
+    color: colors.darkText,
     fontFamily: fonts.bold,
   },
 
   documentPreviewCloseButton2: {
-    backgroundColor: "#10B981",
+    backgroundColor: colors.green1,
     padding: 8,
     paddingHorizontal: 16,
     borderRadius: 8,
@@ -788,7 +789,7 @@ const styles = StyleSheet.create({
   },
 
   documentPreviewCloseButtonText: {
-    color: "white",
+    color: colors.white,
     fontSize: 14,
     fontFamily: fonts.bold,
   },
@@ -797,7 +798,7 @@ const styles = StyleSheet.create({
     width: "100%",
     height: 150,
     borderRadius: 10,
-    backgroundColor: "#F3F4F6",
+    backgroundColor: colors.grayLight2,
     justifyContent: "center",
     alignItems: "center",
     marginVertical: 10,
@@ -805,7 +806,7 @@ const styles = StyleSheet.create({
 
   noImageText: {
     fontSize: 14,
-    color: "#9CA3AF",
+    color: colors.placeholderGray,
     fontFamily: fonts.semiBold,
   },
 });
