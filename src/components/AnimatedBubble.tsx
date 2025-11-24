@@ -1,5 +1,6 @@
 import React, {memo} from 'react';
 import {Animated, StyleSheet, Dimensions} from 'react-native';
+import { colors } from '../common/colors';
 
 const {height} = Dimensions.get('window');
 
@@ -38,9 +39,9 @@ const styles = StyleSheet.create({
   bubble: {
     position: 'absolute',
     borderRadius: 999,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: colors.white08,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
+    borderColor: colors.white15,
   },
 });
 

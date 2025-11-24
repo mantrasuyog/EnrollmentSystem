@@ -1,6 +1,7 @@
 import React, {memo} from 'react';
 import {TouchableOpacity, Text, StyleSheet, Animated} from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
+import { colors as colorTokens } from '../common/colors';
 
 interface ActionButtonProps {
   onPress: () => void;
@@ -11,7 +12,7 @@ interface ActionButtonProps {
 }
 
 const ActionButton: React.FC<ActionButtonProps> = memo(
-  ({onPress, text, icon = '📷', colors = ['#3B82F6', '#1E40AF'], animValue}) => {
+  ({onPress, text, icon = '📷', colors = [colorTokens.bluePrimary, colorTokens.deepBlue2], animValue}) => {
     return (
       <Animated.View
         style={[
@@ -45,7 +46,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     borderRadius: 12,
     overflow: 'hidden',
-    shadowColor: '#3B82F6',
+    shadowColor: colorTokens.bluePrimary,
     shadowOffset: {width: 0, height: 3},
     shadowOpacity: 0.2,
     shadowRadius: 6,
@@ -69,7 +70,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
   },
   bottomActionButtonText: {
-    color: '#ffffff',
+    color: colorTokens.white,
     fontSize: 14,
     fontFamily: 'Sen-Bold',
     letterSpacing: 0.4,
