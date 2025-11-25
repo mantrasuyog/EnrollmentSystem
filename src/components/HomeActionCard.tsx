@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Animated, Dimensions } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
+import { colors } from '../common/colors';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -78,7 +79,7 @@ const styles = StyleSheet.create({
     borderRadius: Math.min(20, screenWidth * 0.045),
     padding: Math.min(20, screenWidth * 0.045),
     minHeight: Math.min(160, screenWidth * 0.35),
-    shadowColor: '#000',
+    shadowColor: colors.black,
     shadowOffset: {
       width: 0,
       height: 6,
@@ -94,7 +95,7 @@ const styles = StyleSheet.create({
     width: Math.min(56, screenWidth * 0.12),
     height: Math.min(56, screenWidth * 0.12),
     borderRadius: Math.min(28, screenWidth * 0.06),
-    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    backgroundColor: colors.white30,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -104,13 +105,13 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: Math.min(20, screenWidth * 0.045),
     fontFamily: 'Sen-Bold',
-    color: '#ffffff',
+    color: colors.white,
     marginBottom: Math.min(8, screenWidth * 0.018),
   },
   cardDescription: {
     fontSize: Math.min(13, screenWidth * 0.032),
     fontFamily: 'Sen-Regular',
-    color: '#ffffff',
+    color: colors.white,
     opacity: 0.95,
     lineHeight: Math.min(18, screenWidth * 0.04),
     marginBottom: Math.min(12, screenWidth * 0.025),
@@ -123,11 +124,11 @@ const styles = StyleSheet.create({
   cardFooterText: {
     fontSize: Math.min(15, screenWidth * 0.035),
     fontFamily: 'Sen-SemiBold',
-    color: '#ffffff',
+    color: colors.white,
   },
   arrow: {
     fontSize: Math.min(22, screenWidth * 0.048),
-    color: '#ffffff',
+    color: colors.white,
     fontWeight: 'bold',
   },
 });

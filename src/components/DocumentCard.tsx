@@ -9,6 +9,7 @@ import {
   ImageSourcePropType,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
+import { colors } from '../common/colors';
 
 interface DocumentCardProps {
   docFront: ImageSourcePropType | {uri: string};
@@ -40,7 +41,7 @@ const DocumentCard: React.FC<DocumentCardProps> = memo(
           },
         ]}>
         <LinearGradient
-          colors={['#6366f1', '#4f46e5', '#4338ca', '#3730a3']}
+          colors={[colors.violet1, colors.blue600, colors.violet1, colors.purple2]}
           start={{x: 0, y: 0}}
           end={{x: 1, y: 1}}
           style={styles.creditCardContainer}>
@@ -103,14 +104,14 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 12,
     minHeight: 180,
-    shadowColor: '#1e40af',
+    shadowColor: colors.blue600,
     shadowOffset: {width: 0, height: 4},
     shadowOpacity: 0.2,
     shadowRadius: 8,
     elevation: 6,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderColor: colors.white30,
   },
   deleteButton: {
     position: 'absolute',
@@ -119,13 +120,13 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 8,
-    backgroundColor: '#EF4444',
+    backgroundColor: colors.danger1,
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 100,
     borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.9)',
-    shadowColor: '#EF4444',
+    borderColor: colors.white80,
+    shadowColor: colors.danger1,
     shadowOffset: {width: 0, height: 2},
     shadowOpacity: 0.3,
     shadowRadius: 4,
@@ -133,7 +134,7 @@ const styles = StyleSheet.create({
   },
   deleteButtonIcon: {
     fontSize: 28,
-    color: '#FFFFFF',
+    color: colors.white,
     fontWeight: 'bold',
     lineHeight: 30,
   },
@@ -144,7 +145,7 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     opacity: 0.1,
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.white,
   },
   chipArea: {
     marginBottom: 2,
@@ -155,7 +156,7 @@ const styles = StyleSheet.create({
     width: 28,
     height: 20,
     borderRadius: 4,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderColor: colors.white30,
   },
   cardContentArea: {
     justifyContent: 'center',
@@ -166,13 +167,13 @@ const styles = StyleSheet.create({
   documentFrameCard: {
     width: '100%',
     height: 105,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: colors.white30,
     borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.35)',
-    shadowColor: '#000',
+    borderColor: colors.white50,
+    shadowColor: colors.black,
     shadowOffset: {width: 0, height: 2},
     shadowOpacity: 0.15,
     shadowRadius: 4,
@@ -190,10 +191,10 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    backgroundColor: colors.white80,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
+    shadowColor: colors.black,
     shadowOffset: {width: 0, height: 1},
     shadowOpacity: 0.2,
     shadowRadius: 2,
@@ -210,7 +211,7 @@ const styles = StyleSheet.create({
   },
   cardLabel: {
     fontSize: 8,
-    color: 'rgba(255, 255, 255, 0.7)',
+    color: colors.white70,
     textTransform: 'uppercase',
     letterSpacing: 0.6,
     fontFamily: 'Sen-Bold',
@@ -218,7 +219,7 @@ const styles = StyleSheet.create({
   },
   cardName: {
     fontSize: 11,
-    color: '#ffffff',
+    color: colors.white,
     fontFamily: 'Sen-Bold',
     letterSpacing: 0.3,
   },
@@ -226,11 +227,11 @@ const styles = StyleSheet.create({
     width: 26,
     height: 26,
     borderRadius: 6,
-    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    backgroundColor: colors.white30,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.4)',
+    borderColor: colors.white50,
   },
   securityIcon: {
     fontSize: 12,

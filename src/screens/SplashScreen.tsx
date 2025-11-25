@@ -21,7 +21,6 @@ interface SplashScreenProps extends Props {
   duration?: number;
 }
 
-// Floating Particles Component
 interface ParticleProps {
   index: number;
   opacityAnim: Animated.Value;
@@ -77,7 +76,6 @@ const Particle = memo<ParticleProps>(({ index, opacityAnim }) => {
   );
 });
 
-// Ripple Effect Component
 interface RippleProps {
   delay: number;
 }
@@ -149,7 +147,6 @@ const SplashScreen: React.FC<SplashScreenProps> = ({
   }, [navigation]);
 
   useEffect(() => {
-    // Main icon scale animation
     Animated.spring(scaleAnim, {
       toValue: 1,
       friction: 4,
@@ -157,7 +154,6 @@ const SplashScreen: React.FC<SplashScreenProps> = ({
       useNativeDriver: true,
     }).start();
 
-    // Continuous pulse animation
     Animated.loop(
       Animated.sequence([
         Animated.timing(pulseAnim, {
@@ -175,7 +171,6 @@ const SplashScreen: React.FC<SplashScreenProps> = ({
       ])
     ).start();
 
-    // Glow animation
     Animated.loop(
       Animated.sequence([
         Animated.timing(glowAnim, {
@@ -193,7 +188,6 @@ const SplashScreen: React.FC<SplashScreenProps> = ({
       ])
     ).start();
 
-    // Rotation animation
     Animated.loop(
       Animated.timing(rotateAnim, {
         toValue: 1,
@@ -203,14 +197,12 @@ const SplashScreen: React.FC<SplashScreenProps> = ({
       })
     ).start();
 
-    // Opacity animation
     Animated.timing(opacityAnim, {
       toValue: 1,
       duration: 800,
       useNativeDriver: true,
     }).start();
 
-    // Text animations
     Animated.sequence([
       Animated.delay(300),
       Animated.parallel([
@@ -229,7 +221,6 @@ const SplashScreen: React.FC<SplashScreenProps> = ({
       ]),
     ]).start();
 
-    // Progress bar animation
     Animated.timing(progressAnim, {
       toValue: 1,
       duration: duration - 500,
@@ -237,7 +228,6 @@ const SplashScreen: React.FC<SplashScreenProps> = ({
       useNativeDriver: false,
     }).start();
 
-    // Navigate to Home after duration
     const timer = setTimeout(() => {
       navigateToHome();
     }, duration);

@@ -9,6 +9,7 @@ import {
   ImageSourcePropType,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
+import { colors } from '../common/colors';
 
 interface BiometricCardProps {
   type: 'face' | 'fingerprint';
@@ -42,14 +43,14 @@ const BiometricCard: React.FC<BiometricCardProps> = memo(
 
     const cardConfig = {
       face: {
-        gradient: ['#4facfe', '#00f2fe'],
+        gradient: [colors.bluePrimary, colors.deepBlue3],
         image: require('../assets/images/face_recognition.png'),
         title: 'Face Scan',
         description: 'Look straight at the camera',
         statusText: 'Ready to scan',
       },
       fingerprint: {
-        gradient: ['#667eea', '#764ba2'],
+        gradient: [colors.purple1, colors.purple2],
         image: require('../assets/images/fingerprint.png'),
         title: 'Fingerprint Scan',
         description: 'All 10 fingerprints required',
@@ -204,7 +205,7 @@ const styles = StyleSheet.create({
     height: 200,
     borderRadius: 20,
     overflow: 'hidden',
-    shadowColor: '#000',
+    shadowColor: colors.black,
     shadowOffset: {width: 0, height: 12},
     shadowOpacity: 0.3,
     shadowRadius: 20,
@@ -237,7 +238,7 @@ const styles = StyleSheet.create({
     height: 70,
     borderRadius: 16,
     borderWidth: 1.5,
-    borderColor: '#fff',
+    borderColor: colors.white,
   },
   cornerTL: {
     position: 'absolute',
@@ -245,7 +246,7 @@ const styles = StyleSheet.create({
     height: 18,
     borderTopWidth: 2.5,
     borderLeftWidth: 2.5,
-    borderColor: '#fff',
+    borderColor: colors.white,
     borderTopLeftRadius: 6,
     top: 0,
     left: 0,
@@ -257,7 +258,7 @@ const styles = StyleSheet.create({
     height: 18,
     borderTopWidth: 2.5,
     borderRightWidth: 2.5,
-    borderColor: '#fff',
+    borderColor: colors.white,
     borderTopRightRadius: 6,
     top: 0,
     right: 0,
@@ -269,7 +270,7 @@ const styles = StyleSheet.create({
     height: 18,
     borderBottomWidth: 2.5,
     borderLeftWidth: 2.5,
-    borderColor: '#fff',
+    borderColor: colors.white,
     borderBottomLeftRadius: 6,
     bottom: 0,
     left: 0,
@@ -281,7 +282,7 @@ const styles = StyleSheet.create({
     height: 18,
     borderBottomWidth: 2.5,
     borderRightWidth: 2.5,
-    borderColor: '#fff',
+    borderColor: colors.white,
     borderBottomRightRadius: 6,
     bottom: 0,
     right: 0,
@@ -295,9 +296,9 @@ const styles = StyleSheet.create({
     position: 'absolute',
     width: 56,
     height: 1.5,
-    backgroundColor: '#fff',
+    backgroundColor: colors.white,
     borderRadius: 1,
-    shadowColor: '#fff',
+    shadowColor: colors.white,
     shadowOffset: {width: 0, height: 0},
     shadowOpacity: 0.8,
     shadowRadius: 6,
@@ -316,7 +317,7 @@ const styles = StyleSheet.create({
     height: 45,
     borderRadius: 22.5,
     borderWidth: 1,
-    borderColor: '#fff',
+    borderColor: colors.white,
     opacity: 0.5,
   },
   fingerprintImage: {
@@ -327,9 +328,9 @@ const styles = StyleSheet.create({
     position: 'absolute',
     width: 48,
     height: 1.5,
-    backgroundColor: '#fff',
+    backgroundColor: colors.white,
     borderRadius: 1,
-    shadowColor: '#fff',
+    shadowColor: colors.white,
     shadowOffset: {width: 0, height: 0},
     shadowOpacity: 0.9,
     shadowRadius: 8,
@@ -341,7 +342,7 @@ const styles = StyleSheet.create({
     height: 52,
     borderRadius: 26,
     borderWidth: 1.5,
-    borderColor: '#fff',
+    borderColor: colors.white,
   },
   textContent: {
     width: '100%',
@@ -351,13 +352,13 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 16,
     fontFamily: 'Sen-Bold',
-    color: '#fff',
+    color: colors.white,
     marginBottom: 4,
     letterSpacing: 0.3,
   },
   cardDescription: {
     fontSize: 11,
-    color: 'rgba(255, 255, 255, 0.85)',
+    color: colors.white80,
     fontFamily: 'Sen-Regular',
   },
   statusContainer: {
@@ -370,8 +371,8 @@ const styles = StyleSheet.create({
     width: 5,
     height: 5,
     borderRadius: 2.5,
-    backgroundColor: '#fff',
-    shadowColor: '#fff',
+    backgroundColor: colors.white,
+    shadowColor: colors.white,
     shadowOffset: {width: 0, height: 0},
     shadowOpacity: 0.8,
     shadowRadius: 3,
@@ -379,7 +380,7 @@ const styles = StyleSheet.create({
   },
   statusText: {
     fontSize: 10,
-    color: 'rgba(255, 255, 255, 0.92)',
+    color: colors.white80,
     fontFamily: 'Sen-Regular',
   },
   progressContainer: {
@@ -395,11 +396,11 @@ const styles = StyleSheet.create({
     width: 5,
     height: 5,
     borderRadius: 2.5,
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    backgroundColor: colors.white30,
   },
   progressDotActive: {
-    backgroundColor: '#fff',
-    shadowColor: '#fff',
+    backgroundColor: colors.white,
+    shadowColor: colors.white,
     shadowOffset: {width: 0, height: 0},
     shadowOpacity: 0.8,
     shadowRadius: 2.5,

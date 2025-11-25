@@ -9,6 +9,7 @@ import {
   StyleSheet,
   Dimensions,
 } from 'react-native';
+import { colors } from '../common/colors';
 
 const {width} = Dimensions.get('window');
 
@@ -118,19 +119,19 @@ ReplaceImageModal.displayName = 'ReplaceImageModal';
 const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    backgroundColor: colors.overlayBlack80,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
   },
   modalContainer: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.white,
     borderRadius: 25,
     padding: 30,
     width: width - 60,
     maxWidth: 400,
     alignItems: 'center',
-    shadowColor: '#000',
+    shadowColor: colors.black,
     shadowOffset: {width: 0, height: 10},
     shadowOpacity: 0.5,
     shadowRadius: 20,
@@ -140,11 +141,11 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#FF9800',
+    backgroundColor: colors.amber1,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 20,
-    shadowColor: '#FF9800',
+    shadowColor: colors.amber1,
     shadowOffset: {width: 0, height: 4},
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -156,14 +157,14 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 22,
     fontFamily: 'Sen-Bold',
-    color: '#212121',
+    color: colors.darkText,
     marginBottom: 12,
     textAlign: 'center',
   },
   modalMessage: {
     fontSize: 15,
     fontFamily: 'Sen-Regular',
-    color: '#757575',
+    color: colors.midGray,
     textAlign: 'center',
     lineHeight: 22,
     marginBottom: 20,
@@ -176,7 +177,7 @@ const styles = StyleSheet.create({
   modalImageLabel: {
     fontSize: 13,
     fontFamily: 'Sen-SemiBold',
-    color: '#757575',
+    color: colors.midGray,
     marginBottom: 12,
   },
   modalImageThumbnail: {
@@ -184,12 +185,12 @@ const styles = StyleSheet.create({
     height: 100,
     borderRadius: 50,
     borderWidth: 3,
-    borderColor: '#4A90E2',
+    borderColor: colors.primaryBlue,
   },
   modalDivider: {
     width: '100%',
     height: 1,
-    backgroundColor: '#E0E0E0',
+    backgroundColor: colors.borderGray,
     marginVertical: 20,
   },
   modalButtonRow: {
@@ -199,32 +200,32 @@ const styles = StyleSheet.create({
   },
   modalSecondaryButton: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: colors.lightGray2,
     paddingVertical: 14,
     borderRadius: 12,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#E0E0E0',
+    borderColor: colors.borderGray,
   },
   modalSecondaryButtonText: {
-    color: '#424242',
+    color: colors.darkText,
     fontSize: 15,
     fontFamily: 'Sen-SemiBold',
   },
   modalPrimaryButton: {
     flex: 1,
-    backgroundColor: '#4A90E2',
+    backgroundColor: colors.primaryBlue,
     paddingVertical: 14,
     borderRadius: 12,
     alignItems: 'center',
-    shadowColor: '#4A90E2',
+    shadowColor: colors.primaryBlue,
     shadowOffset: {width: 0, height: 2},
     shadowOpacity: 0.3,
     shadowRadius: 4,
     elevation: 3,
   },
   modalPrimaryButtonText: {
-    color: '#fff',
+    color: colors.white,
     fontSize: 15,
     fontFamily: 'Sen-Bold',
   },

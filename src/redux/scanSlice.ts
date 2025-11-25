@@ -31,11 +31,6 @@ const scanSlice = createSlice({
 
       if (!exists) {
         state.scans.push(newItem);
-      } else {
-        console.warn(
-          "Duplicate Registration Number:",
-          newItem.Registration_Number
-        );
       }
     },
 

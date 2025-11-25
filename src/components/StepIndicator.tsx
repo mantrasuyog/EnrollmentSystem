@@ -7,6 +7,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
+import { colors } from '../common/colors';
 
 interface StepIndicatorProps {
   steps: string[];
@@ -116,10 +117,10 @@ const StepIndicator: React.FC<StepIndicatorProps> = memo(
                   <LinearGradient
                     colors={
                       isCompleted
-                        ? ['#4CAF50', '#45a049']
+                        ? [colors.green1, colors.green2]
                         : isActive
-                        ? ['#667eea', '#764ba2']
-                        : ['#ffffff', '#f8f9ff']
+                        ? [colors.purple1, colors.purple2]
+                        : [colors.white, colors.lightBlue1]
                     }
                     start={{x: 0, y: 0}}
                     end={{x: 1, y: 1}}
@@ -147,8 +148,8 @@ const StepIndicator: React.FC<StepIndicatorProps> = memo(
                 <LinearGradient
                   colors={
                     isCompleted
-                      ? ['#4CAF50', '#45a049']
-                      : ['#e0e0e0', '#f0f0f0']
+                      ? [colors.green1, colors.green2]
+                      : [colors.borderGray, colors.lightGray1]
                   }
                   start={{x: 0, y: 0}}
                   end={{x: 1, y: 0}}
@@ -187,7 +188,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     borderRadius: 20,
     borderWidth: 1.5,
-    borderColor: '#667eea',
+    borderColor: colors.purple1,
     opacity: 0.35,
     top: -3,
     left: -3,
@@ -195,7 +196,7 @@ const styles = StyleSheet.create({
   glowRing: {
     position: 'absolute',
     borderRadius: 28,
-    backgroundColor: '#667eea',
+    backgroundColor: colors.purple1,
     opacity: 0.08,
     top: -8,
     left: -8,
@@ -207,17 +208,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 6,
-    backgroundColor: '#fff',
+    backgroundColor: colors.white,
   },
   activeStepShadow: {
-    shadowColor: '#667eea',
+    shadowColor: colors.purple1,
     shadowOffset: {width: 0, height: 6},
     shadowOpacity: 0.35,
     shadowRadius: 12,
     elevation: 12,
   },
   completedStepShadow: {
-    shadowColor: '#4CAF50',
+    shadowColor: colors.green1,
     shadowOffset: {width: 0, height: 6},
     shadowOpacity: 0.3,
     shadowRadius: 10,
@@ -233,23 +234,23 @@ const styles = StyleSheet.create({
   stepNumber: {
     fontSize: 16,
     fontFamily: 'Sen-Bold',
-    color: '#999',
+    color: colors.placeholderGray,
   },
   stepNumberActive: {
-    color: '#fff',
+    color: colors.white,
     fontFamily: 'Sen-Bold',
   },
   stepLabel: {
-    fontSize: 9.5,
-    color: '#999',
+    fontSize: 12,
+    color: colors.placeholderGray,
     textAlign: 'center',
     fontFamily: 'Sen-SemiBold',
     marginTop: 4,
   },
   stepLabelActive: {
-    color: '#667eea',
+    color: colors.purple1,
     fontFamily: 'Sen-SemiBold',
-    fontSize: 10,
+    fontSize: 12,
     letterSpacing: 0.2,
   },
   connector: {

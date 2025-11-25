@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, Animated, Dimensions } from 'react-native';
+import { colors } from '../common/colors';
 
 const { width: screenWidth } = Dimensions.get('window');
 const isSmallDevice = screenWidth < 375;
@@ -59,43 +60,43 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: 'rgba(102, 126, 234, 0.2)',
+    backgroundColor: colors.white30,
   },
   ripple2: {
     position: 'absolute',
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: 'rgba(102, 126, 234, 0.15)',
+    backgroundColor: colors.white15,
   },
   ripple3: {
     position: 'absolute',
     width: 120,
     height: 120,
     borderRadius: 60,
-    backgroundColor: 'rgba(102, 126, 234, 0.1)',
+    backgroundColor: colors.white08,
   },
   title: {
     fontSize: Math.min(26, screenWidth * 0.055),
     fontFamily: 'Sen-Bold',
-    color: '#1a1a1a',
+    color: colors.darkText,
     marginBottom: Math.min(6, screenWidth * 0.012),
     textAlign: 'center',
   },
   subtitle: {
     fontSize: Math.min(13, screenWidth * 0.032),
-    color: '#6b7280',
+    color: colors.midGray,
     textAlign: 'center',
     fontFamily: 'Sen-Regular',
     lineHeight: Math.min(18, screenWidth * 0.04),
     paddingHorizontal: Math.min(10, screenWidth * 0.025),
   },
   subtitleDark: {
-    color: '#9ca3af',
+    color: colors.placeholderGray,
     fontFamily: 'Sen-SemiBold',
   },
   textDark: {
-    color: '#ffffff',
+    color: colors.white,
     fontFamily: 'Sen-SemiBold',
   },
 });

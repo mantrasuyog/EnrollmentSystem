@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
+import { colors } from '../common/colors';
 
 interface FaceStatusBadgeProps {
   validationStatus: string;
@@ -56,7 +57,7 @@ const styles = StyleSheet.create({
     borderRadius: 25,
   },
   statusText: {
-    color: '#fff',
+    color: colors.white,
     fontSize: 16,
     fontFamily: 'Sen-SemiBold',
   },

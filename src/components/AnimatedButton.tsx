@@ -6,6 +6,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
+import { colors } from '../common/colors';
 
 interface AnimatedButtonProps {
   onPress: () => void;
@@ -50,7 +51,7 @@ const AnimatedButton: React.FC<AnimatedButtonProps> = memo(
           activeOpacity={0.8}>
           {isPrimary ? (
             <LinearGradient
-              colors={['#667eea', '#764ba2']}
+              colors={[colors.purple1, colors.purple2]}
               start={{x: 0, y: 0}}
               end={{x: 1, y: 1}}
               style={[
@@ -64,7 +65,7 @@ const AnimatedButton: React.FC<AnimatedButtonProps> = memo(
             </LinearGradient>
           ) : (
             <LinearGradient
-              colors={['#f5f5f5', '#ffffff']}
+              colors={[colors.lightGray2, colors.white]}
               start={{x: 0, y: 0}}
               end={{x: 1, y: 1}}
               style={[styles.button, disabled && styles.buttonDisabled]}>
@@ -87,7 +88,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 0,
-    shadowColor: '#000',
+    shadowColor: colors.black,
     shadowOffset: {width: 0, height: 6},
     shadowOpacity: 0.15,
     shadowRadius: 12,
@@ -98,7 +99,7 @@ const styles = StyleSheet.create({
   },
   buttonPrimary: {
     borderColor: 'transparent',
-    shadowColor: '#667eea',
+    shadowColor: colors.purple1,
     shadowOpacity: 0.5,
     shadowRadius: 16,
     elevation: 12,
@@ -106,10 +107,10 @@ const styles = StyleSheet.create({
   buttonText: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#333',
+    color: colors.darkText,
   },
   buttonTextPrimary: {
-    color: '#fff',
+    color: colors.white,
     letterSpacing: 0.5,
   },
 });

@@ -4,7 +4,6 @@ import {Animated, Dimensions} from 'react-native';
 const {height} = Dimensions.get('window');
 
 export const useEnrollmentAnimations = () => {
-  
   const faceScaleAnim = useRef(new Animated.Value(1)).current;
   const fingerScaleAnim = useRef(new Animated.Value(1)).current;
 
@@ -26,7 +25,6 @@ export const useEnrollmentAnimations = () => {
   const cornerAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    
     Animated.loop(
       Animated.sequence([
         Animated.timing(faceScanlineAnim, {

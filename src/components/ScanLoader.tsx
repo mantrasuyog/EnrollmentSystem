@@ -1,6 +1,7 @@
 import React, {memo} from 'react';
 import {View, Text, TouchableOpacity, StyleSheet, Animated} from 'react-native';
 import * as Progress from 'react-native-progress';
+import { colors } from '../common/colors';
 
 interface ScanLoaderProps {
   scanProgress: number;
@@ -24,10 +25,10 @@ const ScanLoader: React.FC<ScanLoaderProps> = memo(
           style={styles.scanProgressBar}
           width={250}
           useNativeDriver={true}
-          color="#1e40af"
+          color={colors.deepBlue1}
           progress={scanProgress}
-          borderColor="rgba(30,64,175,0.2)"
-          unfilledColor="#e2e8f0"
+          borderColor={colors.white30}
+          unfilledColor={colors.borderGray}
         />
         <Text style={styles.progressText}>
           {Math.round(scanProgress * 100)}%
@@ -56,27 +57,27 @@ const styles = StyleSheet.create({
     width: 140,
     height: 140,
     borderRadius: 70,
-    backgroundColor: '#EEF2FF',
+    backgroundColor: colors.lightBlue1,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 32,
-    shadowColor: '#1e40af',
+    shadowColor: colors.deepBlue1,
     shadowOffset: {width: 0, height: 6},
     shadowOpacity: 0.25,
     shadowRadius: 16,
     elevation: 10,
     borderWidth: 3,
-    borderColor: '#DBEAFE',
+    borderColor: colors.sky3,
   },
   loaderInner: {
     width: 96,
     height: 96,
     borderRadius: 48,
-    backgroundColor: '#3B82F6',
+    backgroundColor: colors.bluePrimary,
   },
   loaderText: {
     fontSize: 20,
-    color: '#1e3a8a',
+    color: colors.deepBlue1,
     marginBottom: 24,
     textAlign: 'center',
     fontFamily: 'Sen-Bold',
@@ -88,7 +89,7 @@ const styles = StyleSheet.create({
   },
   progressText: {
     fontSize: 16,
-    color: '#3B82F6',
+    color: colors.bluePrimary,
     marginTop: 12,
     fontFamily: 'Sen-Bold',
   },
@@ -96,9 +97,9 @@ const styles = StyleSheet.create({
     marginTop: 32,
     paddingVertical: 14,
     paddingHorizontal: 40,
-    backgroundColor: '#ef4444',
+    backgroundColor: colors.danger1,
     borderRadius: 12,
-    shadowColor: '#ef4444',
+    shadowColor: colors.danger1,
     shadowOffset: {width: 0, height: 4},
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -106,7 +107,7 @@ const styles = StyleSheet.create({
   },
   cancelScanText: {
     fontSize: 16,
-    color: '#ffffff',
+    color: colors.white,
     fontFamily: 'Sen-Bold',
     letterSpacing: 0.5,
     textAlign: 'center',

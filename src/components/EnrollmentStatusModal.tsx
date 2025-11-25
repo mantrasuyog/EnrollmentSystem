@@ -10,6 +10,7 @@ import {
   ScrollView,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
+import { colors } from '../common/colors';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -55,9 +56,7 @@ const EnrollmentStatusModal: React.FC<EnrollmentStatusModalProps> = ({
   } | null>(null);
 
   useEffect(() => {
-    console.log('EnrollmentStatusModal visible:', visible);
     if (visible) {
-      console.log('Starting modal animations');
       Animated.parallel([
         Animated.timing(modalOpacity, {
           toValue: 1,
@@ -134,17 +133,10 @@ const EnrollmentStatusModal: React.FC<EnrollmentStatusModalProps> = ({
   const getDocumentImage = useCallback(() => {
     if (!selectedDocument) return null;
 
-    console.log('Getting document image for type:', selectedDocument.type);
-    console.log('Has Document_Image:', !!enrollmentData.scanData?.Document_Image);
-    console.log('Has Portrait_Image:', !!enrollmentData.scanData?.Portrait_Image);
-    console.log('Has faceImage:', !!enrollmentData.faceImage);
-
     switch (selectedDocument.type) {
       case 'id':
-        // ID Document shows the Document_Image from scan data
         const docImage = enrollmentData.scanData?.Document_Image;
         if (docImage) {
-          // Check if it already has data:image prefix
           if (docImage.startsWith('data:image')) {
             return docImage;
           }
@@ -152,7 +144,6 @@ const EnrollmentStatusModal: React.FC<EnrollmentStatusModalProps> = ({
         }
         return null;
       case 'photo':
-        // Portrait Photo shows Portrait_Image from scan data
         const portraitImage = enrollmentData.scanData?.Portrait_Image;
         if (portraitImage) {
           if (portraitImage.startsWith('data:image')) {
@@ -162,7 +153,6 @@ const EnrollmentStatusModal: React.FC<EnrollmentStatusModalProps> = ({
         }
         return null;
       case 'face':
-        // Face Enrollment shows the enrolled face image
         const faceImg = enrollmentData.faceImage;
         if (faceImg) {
           if (faceImg.startsWith('data:image')) {
@@ -172,7 +162,6 @@ const EnrollmentStatusModal: React.FC<EnrollmentStatusModalProps> = ({
         }
         return null;
       case 'fingerprint':
-        // Fingerprint shows fingerprint image from scan data if available
         const fingerprintImage = (enrollmentData.scanData as any)?.Fingerprint_Image;
         if (fingerprintImage) {
           if (fingerprintImage.startsWith('data:image')) {
@@ -185,13 +174,6 @@ const EnrollmentStatusModal: React.FC<EnrollmentStatusModalProps> = ({
         return null;
     }
   }, [selectedDocument, enrollmentData]);
-
-  console.log('Rendering EnrollmentStatusModal, visible:', visible);
-  console.log('Enrollment data:', {
-    hasScanData: !!enrollmentData.scanData,
-    hasFaceImage: !!enrollmentData.faceImage,
-    scannedDataLength: scannedData.length
-  });
 
   if (!visible) {
     return null;
@@ -219,9 +201,8 @@ const EnrollmentStatusModal: React.FC<EnrollmentStatusModalProps> = ({
         </TouchableOpacity>
 
         <ScrollView style={styles.modalScrollView} showsVerticalScrollIndicator={true}>
-          {/* Header with Gradient */}
           <LinearGradient
-            colors={['#667eea', '#764ba2']}
+            colors={[colors.purple1, colors.purple2]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.gradientHeader}
@@ -235,7 +216,6 @@ const EnrollmentStatusModal: React.FC<EnrollmentStatusModalProps> = ({
             <Text style={styles.modalSubtitle}>Your biometric data is already registered</Text>
           </LinearGradient>
 
-          {/* Profile Image */}
           <View style={styles.profileImageContainer}>
             {enrollmentData.faceImage ? (
               <Image
@@ -254,7 +234,6 @@ const EnrollmentStatusModal: React.FC<EnrollmentStatusModalProps> = ({
             )}
           </View>
 
-          {/* Registration Info */}
           <View style={styles.registrationCard}>
             <View style={styles.registrationItem}>
               <Text style={styles.registrationLabel}>Registration Number</Text>
@@ -270,13 +249,12 @@ const EnrollmentStatusModal: React.FC<EnrollmentStatusModalProps> = ({
             </View>
           </View>
 
-          {/* Basic Information */}
           <View style={styles.detailsSection}>
             <Text style={styles.detailsSectionTitle}>Basic Information</Text>
 
             {enrollmentData.scanData?.Name && (
               <View style={styles.detailItem}>
-                <Text style={styles.detailLabel}>Full Name</Text>
+                <Text style={styles.detailLabel}>Full Name:</Text>
                 <Text style={styles.detailValueText}>{enrollmentData.scanData.Name}</Text>
               </View>
             )}
@@ -284,7 +262,7 @@ const EnrollmentStatusModal: React.FC<EnrollmentStatusModalProps> = ({
             {scannedData && scannedData.length > 0 ? (
               scannedData.map((item: any, index: number) => (
                 <View key={index} style={styles.detailItem}>
-                  <Text style={styles.detailLabel}>{item.name}</Text>
+                  <Text style={styles.detailLabel}>{item.name}:</Text>
                   <Text style={styles.detailValueText}>{item.value}</Text>
                 </View>
               ))
@@ -295,7 +273,6 @@ const EnrollmentStatusModal: React.FC<EnrollmentStatusModalProps> = ({
             )}
           </View>
 
-          {/* Documents Section */}
           <View style={styles.documentsSection}>
             <Text style={styles.detailsSectionTitle}>Enrolled Documents</Text>
 
@@ -372,11 +349,10 @@ const EnrollmentStatusModal: React.FC<EnrollmentStatusModalProps> = ({
             )}
           </View>
 
-          {/* Action Buttons */}
           <View style={styles.actionButtonsContainer}>
             <TouchableOpacity style={styles.enrollNewButton} onPress={onEnrollNew}>
               <LinearGradient
-                colors={['#10B981', '#059669']}
+                colors={[colors.green1, colors.green2]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.enrollNewButtonGradient}
@@ -394,7 +370,6 @@ const EnrollmentStatusModal: React.FC<EnrollmentStatusModalProps> = ({
         </ScrollView>
       </Animated.View>
 
-      {/* Document Preview Modal */}
       {showDocumentPreview && selectedDocument && (
         <Animated.View
           style={[styles.documentPreviewOverlay, { opacity: documentPreviewOpacity }]}
@@ -466,17 +441,17 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: 'rgba(0,0,0,0.7)',
+    backgroundColor: colors.overlayBlack60,
   },
   modalContent: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.white,
     borderRadius: 20,
     width: screenWidth * 0.9,
     maxHeight: '85%',
     paddingBottom: 10,
     zIndex: 10000,
     elevation: 20,
-    shadowColor: '#000',
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.3,
     shadowRadius: 20,
@@ -486,225 +461,230 @@ const styles = StyleSheet.create({
     top: 10,
     right: 12,
     padding: 8,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.grayLight2,
     borderRadius: 20,
     zIndex: 20,
     elevation: 5,
   },
   closeIcon: {
     fontSize: 18,
-    color: '#1F2937',
+    color: colors.darkText,
     fontWeight: 'bold',
   },
   modalScrollView: {
     paddingTop: 16,
   },
   gradientHeader: {
-    padding: 24,
+    padding: 16,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 12,
   },
   checkmarkCircle: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    backgroundColor: '#10B981',
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: colors.green1,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 10,
     elevation: 8,
-    shadowColor: '#10B981',
+    shadowColor: colors.green1,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.4,
     shadowRadius: 8,
   },
   checkmarkIcon: {
-    fontSize: 40,
-    color: '#ffffff',
+    fontSize: 28,
+    color: colors.white,
     fontWeight: 'bold',
   },
   modalTitle: {
-    fontSize: 24,
+    fontSize: 18,
     fontFamily: fonts.bold,
-    color: '#ffffff',
-    marginBottom: 8,
+    color: colors.white,
+    marginBottom: 4,
     textAlign: 'center',
   },
   modalSubtitle: {
-    fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.9)',
+    fontSize: 12,
+    color: colors.white80,
     fontFamily: fonts.regular,
     textAlign: 'center',
   },
   profileImageContainer: {
     alignItems: 'center',
-    marginVertical: 16,
+    marginVertical: 10,
   },
   profileImage: {
-    width: 90,
-    height: 90,
-    borderRadius: 45,
-    backgroundColor: '#F3F4F6',
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: colors.grayLight2,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 3,
-    borderColor: '#667eea',
+    borderWidth: 2,
+    borderColor: colors.purple1,
   },
   profileImageActual: {
-    width: 90,
-    height: 90,
-    borderRadius: 45,
-    borderWidth: 3,
-    borderColor: '#667eea',
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    borderWidth: 2,
+    borderColor: colors.purple1,
   },
   profileImagePlaceholder: {
-    fontSize: 40,
+    fontSize: 28,
   },
   registrationCard: {
     marginHorizontal: 16,
-    marginBottom: 20,
-    backgroundColor: '#F9FAFB',
-    borderRadius: 12,
-    padding: 16,
+    marginBottom: 12,
+    backgroundColor: colors.bgLight,
+    borderRadius: 8,
+    padding: 10,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.borderGray,
   },
   registrationItem: {
-    marginBottom: 12,
+    marginBottom: 8,
   },
   registrationLabel: {
-    fontSize: 11,
-    color: '#9CA3AF',
+    fontSize: 10,
+    color: colors.placeholderGray,
     fontFamily: fonts.regular,
-    marginBottom: 4,
+    marginBottom: 2,
   },
   registrationValue: {
-    fontSize: 16,
+    fontSize: 14,
     fontFamily: fonts.bold,
-    color: '#1F2937',
+    color: colors.darkText,
   },
   detailsSection: {
     marginHorizontal: 16,
-    marginBottom: 20,
+    marginBottom: 12,
+    backgroundColor: '#F5F5F5',
+    borderRadius: 8,
+    padding: 10,
   },
   detailsSectionTitle: {
-    fontSize: 16,
+    fontSize: 14,
     fontFamily: fonts.bold,
-    marginBottom: 12,
-    color: '#1F2937',
+    marginBottom: 8,
+    color: colors.darkText,
   },
   detailItem: {
-    paddingVertical: 12,
+    flexDirection: 'row',
+    paddingVertical: 6,
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: '#E0E0E0',
   },
   detailLabel: {
     fontSize: 11,
-    color: '#9CA3AF',
-    fontFamily: fonts.regular,
-    marginBottom: 4,
+    color: colors.placeholderGray,
+    fontFamily: fonts.semiBold,
+    width: '40%',
   },
   detailValueText: {
-    fontSize: 14,
+    fontSize: 11,
     fontFamily: fonts.semiBold,
-    color: '#1F2937',
+    color: colors.darkText,
+    width: '60%',
   },
   noDataText: {
     fontSize: 13,
     fontFamily: fonts.regular,
-    color: '#9CA3AF',
+    color: colors.placeholderGray,
     textAlign: 'center',
     paddingVertical: 12,
   },
   documentsSection: {
     marginHorizontal: 16,
-    marginBottom: 20,
+    marginBottom: 12,
   },
   documentCard: {
-    backgroundColor: '#F9FAFB',
-    padding: 12,
-    borderRadius: 10,
+    backgroundColor: colors.bgLight,
+    padding: 8,
+    borderRadius: 8,
     flexDirection: 'row',
-    marginBottom: 10,
+    marginBottom: 6,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.borderGray,
     alignItems: 'center',
   },
   documentIconContainer: {
-    width: 44,
-    height: 44,
-    borderRadius: 10,
-    backgroundColor: '#fff',
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    backgroundColor: colors.white,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: 10,
   },
   documentIcon: {
-    fontSize: 22,
+    fontSize: 18,
   },
   documentInfo: {
     flex: 1,
   },
   documentName: {
-    fontSize: 14,
+    fontSize: 12,
     fontFamily: fonts.semiBold,
-    color: '#1F2937',
-    marginBottom: 2,
+    color: colors.darkText,
+    marginBottom: 1,
   },
   documentStatus: {
-    fontSize: 12,
-    color: '#10B981',
+    fontSize: 10,
+    color: colors.green1,
     fontFamily: fonts.semiBold,
   },
   viewButton: {
-    padding: 5,
-    paddingHorizontal: 10,
+    padding: 4,
+    paddingHorizontal: 8,
   },
   viewButtonText: {
-    fontSize: 12,
-    color: '#2563EB',
+    fontSize: 11,
+    color: colors.blue600,
     fontFamily: fonts.semiBold,
-    backgroundColor: '#E0E7FF',
+    backgroundColor: colors.blueLightBg,
     borderRadius: 4,
-    padding: 4,
+    padding: 3,
   },
   actionButtonsContainer: {
     marginHorizontal: 16,
-    marginTop: 10,
-    marginBottom: 20,
-    gap: 10,
+    marginTop: 8,
+    marginBottom: 12,
+    gap: 8,
   },
   enrollNewButton: {
-    borderRadius: 12,
+    borderRadius: 10,
     overflow: 'hidden',
     elevation: 4,
   },
   enrollNewButtonGradient: {
-    paddingVertical: 14,
+    paddingVertical: 12,
     alignItems: 'center',
   },
   enrollNewButtonText: {
-    color: 'white',
-    fontSize: 16,
+    color: colors.white,
+    fontSize: 14,
     fontFamily: fonts.bold,
   },
   modalCloseButton: {
-    borderRadius: 12,
+    borderRadius: 10,
     overflow: 'hidden',
   },
   closeButtonPlain: {
-    paddingVertical: 14,
+    paddingVertical: 12,
     alignItems: 'center',
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.grayLight2,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 12,
+    borderColor: colors.borderGray,
+    borderRadius: 10,
   },
   closeButtonPlainText: {
-    color: '#374151',
-    fontSize: 16,
+    color: colors.darkText,
+    fontSize: 14,
     fontFamily: fonts.bold,
   },
   documentPreviewOverlay: {
@@ -723,10 +703,10 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: 'rgba(0,0,0,0.8)',
+    backgroundColor: colors.overlayBlack80,
   },
   documentPreviewContent: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.white,
     borderRadius: 16,
     width: '85%',
     maxHeight: '70%',
@@ -749,12 +729,12 @@ const styles = StyleSheet.create({
   documentPreviewTitle: {
     fontSize: 16,
     fontFamily: fonts.bold,
-    color: '#1F2937',
+    color: colors.darkText,
     marginBottom: 3,
   },
   documentPreviewSubtitle: {
     fontSize: 12,
-    color: '#6B7280',
+    color: colors.midGray,
     fontFamily: fonts.semiBold,
   },
   documentPreviewImage: {
@@ -768,17 +748,17 @@ const styles = StyleSheet.create({
     top: 10,
     right: 10,
     padding: 6,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.grayLight2,
     borderRadius: 16,
     zIndex: 10003,
   },
   documentPreviewCloseIcon: {
     fontSize: 16,
-    color: '#1F2937',
+    color: colors.darkText,
     fontFamily: fonts.bold,
   },
   documentPreviewCloseButton2: {
-    backgroundColor: '#10B981',
+    backgroundColor: colors.green1,
     padding: 8,
     paddingHorizontal: 16,
     borderRadius: 8,
@@ -786,7 +766,7 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   documentPreviewCloseButtonText: {
-    color: 'white',
+    color: colors.white,
     fontSize: 14,
     fontFamily: fonts.bold,
   },
@@ -794,14 +774,14 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 200,
     borderRadius: 10,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.grayLight2,
     justifyContent: 'center',
     alignItems: 'center',
     marginVertical: 10,
   },
   noImageText: {
     fontSize: 14,
-    color: '#9CA3AF',
+    color: colors.placeholderGray,
     fontFamily: fonts.semiBold,
   },
 });

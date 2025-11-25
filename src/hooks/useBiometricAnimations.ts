@@ -4,7 +4,6 @@ import {Animated, Dimensions} from 'react-native';
 const {height} = Dimensions.get('window');
 
 export const useBiometricAnimations = () => {
-  
   const faceScaleAnim = useRef(new Animated.Value(1)).current;
   const fingerScaleAnim = useRef(new Animated.Value(1)).current;
 
@@ -26,7 +25,6 @@ export const useBiometricAnimations = () => {
   const bubble5 = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    
     const faceScanlineAnimation = Animated.loop(
       Animated.sequence([
         Animated.timing(faceScanlineAnim, {
@@ -262,10 +260,8 @@ export const useBiometricAnimations = () => {
   });
 
   return {
-    
     faceScaleAnim,
     fingerScaleAnim,
-    
     faceScanlineTranslateY,
     fingerScanlineTranslateY,
     faceFrameOpacity,
@@ -275,7 +271,6 @@ export const useBiometricAnimations = () => {
     waveOpacity1,
     waveScale2,
     waveOpacity2,
-    
     bubble1Transform,
     bubble2Transform,
     bubble3Transform,

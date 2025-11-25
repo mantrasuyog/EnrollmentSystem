@@ -170,11 +170,8 @@ const App: React.FC = () => {
         (response) => {
           const result = JSON.parse(response)
           if (!result['success']) {
-            console.log('Initialization failed:', response)
             return
           }
-
-          console.log('Init complete')
 
           DocumentReader.getIsRFIDAvailableForUse(
             (canRfid: boolean) => {
@@ -189,7 +186,7 @@ const App: React.FC = () => {
                 }))
               }
             },
-            (error) => console.log('RFID check error:', error)
+            () => {}
           )
 
           DocumentReader.getAvailableScenarios(
@@ -217,13 +214,12 @@ const App: React.FC = () => {
 
               onInitialized()
             },
-            (error) => console.log('Scenarios error:', error)
+            () => {}
           )
         },
-        (error) => console.log('Init error:', error)
+        () => {}
       )
-    } catch (error) {
-      console.log('License error:', error)
+    } catch {
       setState((prev) => ({ ...prev, isInitializing: false }))
     }
   }
@@ -395,7 +391,7 @@ const App: React.FC = () => {
           })
         }
       },
-      (error: string) => console.log(error)
+      () => {}
     )
 
     results.graphicFieldImageByType(
@@ -408,7 +404,7 @@ const App: React.FC = () => {
           }))
         }
       },
-      (error: string) => console.log(error)
+      () => {}
     )
 
     results.graphicFieldImageByType(
@@ -421,7 +417,7 @@ const App: React.FC = () => {
           }))
         }
       },
-      (error: string) => console.log(error)
+      () => {}
     )
 
     results.graphicFieldImageByTypeSource(
@@ -435,7 +431,7 @@ const App: React.FC = () => {
           }))
         }
       },
-      (error: string) => console.log(error)
+      () => {}
     )
 
     const textFieldTypes: Array<{
@@ -494,7 +490,7 @@ const App: React.FC = () => {
             })
           }
         },
-        (error: string) => console.log(error)
+        () => {}
       )
     })
 
@@ -532,7 +528,7 @@ const App: React.FC = () => {
     clearResults()
     const config = new ScannerConfig()
     config.scenario = state.selectedScenario
-    DocumentReader.startScanner(config, () => {}, (e) => console.log(e))
+    DocumentReader.startScanner(config, () => {}, () => {})
   }
 
   const recognize = (): void => {
@@ -544,8 +540,6 @@ const App: React.FC = () => {
       },
       (r) => {
         if (r.errorCode) {
-          console.log('error code: ' + r.errorCode)
-          console.log('error message: ' + r.errorMessage)
           setState((prev) => ({ ...prev, fullName: r.errorMessage }))
           return
         }
@@ -569,7 +563,7 @@ const App: React.FC = () => {
         const config = new RecognizeConfig()
         config.scenario = state.selectedScenario
         config.images = images
-        DocumentReader.recognize(config, () => {}, (e) => console.log(e))
+        DocumentReader.recognize(config, () => {}, () => {})
       }
     )
   }

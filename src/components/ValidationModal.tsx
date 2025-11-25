@@ -8,6 +8,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
+import { colors } from '../common/colors';
 
 interface ValidationStep {
   number: number;
@@ -153,7 +154,7 @@ ValidationModal.displayName = 'ValidationModal';
 const styles = StyleSheet.create({
   validationModalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    backgroundColor: colors.overlayBlack60,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -165,13 +166,13 @@ const styles = StyleSheet.create({
     bottom: 0,
   },
   validationModalContent: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.white,
     borderRadius: 24,
     padding: 28,
     width: '85%',
     maxWidth: 400,
     alignItems: 'center',
-    shadowColor: '#000',
+    shadowColor: colors.black,
     shadowOffset: {width: 0, height: 10},
     shadowOpacity: 0.3,
     shadowRadius: 20,
@@ -186,7 +187,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   validationIconGlow: {
-    shadowColor: '#667eea',
+    shadowColor: colors.purple1,
     shadowOffset: {width: 0, height: 4},
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -198,14 +199,14 @@ const styles = StyleSheet.create({
   validationModalTitle: {
     fontSize: 22,
     fontFamily: 'Sen-Bold',
-    color: '#1F2937',
+    color: colors.darkText,
     marginBottom: 12,
     textAlign: 'center',
   },
   validationModalSubtitle: {
     fontSize: 14,
     fontFamily: 'Sen-Regular',
-    color: '#6B7280',
+    color: colors.midGray,
     textAlign: 'center',
     marginBottom: 24,
     lineHeight: 20,
@@ -231,19 +232,19 @@ const styles = StyleSheet.create({
   validationStepNumberText: {
     fontSize: 16,
     fontFamily: 'Sen-Bold',
-    color: '#fff',
+    color: colors.white,
   },
   validationStepText: {
     flex: 1,
     fontSize: 14,
     fontFamily: 'Sen-SemiBold',
-    color: '#334155',
+    color: colors.darkText,
   },
   validationButton: {
     width: '100%',
     borderRadius: 14,
     overflow: 'hidden',
-    shadowColor: '#667eea',
+    shadowColor: colors.purple1,
     shadowOffset: {width: 0, height: 6},
     shadowOpacity: 0.4,
     shadowRadius: 12,
@@ -257,7 +258,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
   },
   validationButtonText: {
-    color: '#fff',
+    color: colors.white,
     fontSize: 17,
     fontFamily: 'Sen-Bold',
     letterSpacing: 0.5,

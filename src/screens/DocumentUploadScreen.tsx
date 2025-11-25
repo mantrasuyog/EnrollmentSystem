@@ -11,6 +11,8 @@ import {
   TextInput,
   Animated as RNAnimated,
   Image,
+  ScrollView,
+  Easing,
 } from 'react-native';
 import {NavigationProp} from '@react-navigation/native';
 import DocumentReader, {
@@ -43,10 +45,11 @@ import ScanLoader from '../components/ScanLoader';
 import DocumentHeader from '../components/DocumentHeader';
 import ValidationModal from '../components/ValidationModal';
 import ExistingDocumentModal from '../components/ExistingDocumentModal';
+import AnimatedCameraIcon from '../components/AnimatedCameraIcon';
 
 import {useAnimations} from '../hooks/useAnimations';
 
-const {height} = Dimensions.get('window');
+const {height, width} = Dimensions.get('window');
 
 interface IProps {
   navigation?: NavigationProp<any>;
@@ -63,7 +66,6 @@ const DocumentUploadScreen: React.FC<IProps> = ({
   onSubmitSuccess,
   scanData,
 }) => {
-  
   const [fullName, setFullName] = useState<string>('Ready');
   const [portrait, setPortrait] = useState(
     require('../assets/images/portrait.png'),
@@ -72,6 +74,7 @@ const DocumentUploadScreen: React.FC<IProps> = ({
   const [allTextFields, setAllTextFields] = useState<any[]>([]);
   const [isCentreCodeEntered, setIsCentreCodeEntered] = useState(false);
   const [enteredCentreCode, setEnteredCentreCode] = useState('');
+  const [isLoadedFromExisting, setIsLoadedFromExisting] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
   const [scanProgress, setScanProgress] = useState(0);
   const [showActionModal, setShowActionModal] = useState(false);
@@ -84,6 +87,7 @@ const DocumentUploadScreen: React.FC<IProps> = ({
   );
   const [showDocumentZoomModal, setShowDocumentZoomModal] = useState(false);
   const [showExistingDocumentModal, setShowExistingDocumentModal] = useState(false);
+  const [showAllDetailsModal, setShowAllDetailsModal] = useState(false);
   const [canRfid, setCanRfid] = useState(false);
   const [doRfid, setDoRfid] = useState(false);
   const [isReadingRfidCustomUi, setIsReadingRfidCustomUi] = useState(false);
@@ -96,15 +100,59 @@ const DocumentUploadScreen: React.FC<IProps> = ({
   const isReadingRfid = useRef(false);
 
   const animations = useAnimations();
+  const cardScaleAnim = useRef(new RNAnimated.Value(0.95)).current;
+  const cardOpacityAnim = useRef(new RNAnimated.Value(0)).current;
+  const detailsSlideAnim = useRef(new RNAnimated.Value(50)).current;
+  const detailsOpacityAnim = useRef(new RNAnimated.Value(0)).current;
+  const fabScaleAnim = useRef(new RNAnimated.Value(0)).current;
+  const fabRotateAnim = useRef(new RNAnimated.Value(0)).current;
 
   useEffect(() => {
     initializeDocumentReader();
     loadImagesFromRedux();
+    loadExistingDocumentDetails();
+
+    RNAnimated.parallel([
+      RNAnimated.timing(cardScaleAnim, {
+        toValue: 1,
+        duration: 600,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      RNAnimated.timing(cardOpacityAnim, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    RNAnimated.timing(fabScaleAnim, {
+      toValue: 1,
+      duration: 800,
+      delay: 400,
+      easing: Easing.out(Easing.back(1.2)),
+      useNativeDriver: true,
+    }).start();
   }, []);
 
   useEffect(() => {
     loadImagesFromRedux();
-  }, [scanData]);
+    if (isCentreCodeEntered) {
+      RNAnimated.parallel([
+        RNAnimated.timing(detailsSlideAnim, {
+          toValue: 0,
+          duration: 500,
+          easing: Easing.out(Easing.quad),
+          useNativeDriver: true,
+        }),
+        RNAnimated.timing(detailsOpacityAnim, {
+          toValue: 1,
+          duration: 500,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+  }, [isCentreCodeEntered]);
 
   useEffect(() => {
     return () => {
@@ -145,7 +193,6 @@ const DocumentUploadScreen: React.FC<IProps> = ({
         config,
         response => {
           if (!JSON.parse(response)['success']) {
-            console.log(response);
             return;
           }
 
@@ -158,13 +205,13 @@ const DocumentUploadScreen: React.FC<IProps> = ({
                 setRfidUIHeaderColor('black');
               }
             },
-            error => console.log(error),
+            () => {},
           );
 
           setFullName('Ready');
           onInitialized();
         },
-        error => console.log(error),
+        () => {},
       );
     });
   }, []);
@@ -205,6 +252,31 @@ const DocumentUploadScreen: React.FC<IProps> = ({
     } else {
       setDocFront(require('../assets/images/id.png'));
       setPortrait(require('../assets/images/portrait.png'));
+    }
+  }, [scanData]);
+
+  const loadExistingDocumentDetails = useCallback(() => {
+    if (scanData && scanData.length > 0) {
+      const latestScan = scanData[0];
+
+      if (latestScan.Document_Image && latestScan.Centre_Code) {
+        if (latestScan.Name) {
+          setFullName(latestScan.Name);
+        }
+
+        setEnteredCentreCode(latestScan.Centre_Code);
+        setIsCentreCodeEntered(true);
+        setIsLoadedFromExisting(true);
+
+        if (latestScan.scanned_json) {
+          try {
+            const fields = JSON.parse(latestScan.scanned_json);
+            setAllTextFields(fields);
+          } catch (error) {
+            setAllTextFields([]);
+          }
+        }
+      }
     }
   }, [scanData]);
 
@@ -250,20 +322,17 @@ const DocumentUploadScreen: React.FC<IProps> = ({
       return;
     }
 
-    // Check if scan data exists in Redux
     if (!scanData || scanData.length === 0) {
       showErrorModalFn('Document details not found. Please scan the document first.');
       return;
     }
 
-    // Check if required document details are present
     const latestScan = scanData[0];
     if (!latestScan.Document_Image || !latestScan.Portrait_Image) {
       showErrorModalFn('Document and portrait images are required to proceed with enrollment.');
       return;
     }
 
-    // Navigate to Face and Finger Enrollment screen
     if (onSubmitSuccess) {
       onSubmitSuccess();
     } else if (navigation) {
@@ -349,7 +418,7 @@ const DocumentUploadScreen: React.FC<IProps> = ({
           setFullName(value || 'Document Scanned');
           ScanData.setName(value || '');
         },
-        (error: string) => console.log(error),
+        () => {},
       );
 
       results.graphicFieldImageByType(
@@ -360,7 +429,7 @@ const DocumentUploadScreen: React.FC<IProps> = ({
             ScanData.setDocument('data:image/png;base64,' + value);
           }
         },
-        (error: string) => console.log(error),
+        () => {},
       );
 
       results.graphicFieldImageByType(
@@ -371,7 +440,7 @@ const DocumentUploadScreen: React.FC<IProps> = ({
             ScanData.setPortrait('data:image/png;base64,' + value);
           }
         },
-        (error: string) => console.log(error),
+        () => {},
       );
 
       let fields: any[] = [];
@@ -500,6 +569,7 @@ const DocumentUploadScreen: React.FC<IProps> = ({
       setCentreCodeInput('');
       setAllTextFields([]);
       setFullName('Ready');
+      setIsLoadedFromExisting(false);
     }, 300);
   }, [clearResults, clearScanData]);
 
@@ -514,8 +584,7 @@ const DocumentUploadScreen: React.FC<IProps> = ({
       DocumentReader.startScanner(
         config,
         _ => {},
-        e => {
-          console.log(e);
+        () => {
           stopScanProgress();
         },
       );
@@ -535,8 +604,6 @@ const DocumentUploadScreen: React.FC<IProps> = ({
         },
         r => {
           if (r.errorCode != null) {
-            console.log('error code: ' + r.errorCode);
-            console.log('error message: ' + r.errorMessage);
             setFullName(r.errorMessage || 'Error');
             return;
           }
@@ -557,8 +624,7 @@ const DocumentUploadScreen: React.FC<IProps> = ({
           DocumentReader.recognize(
             config,
             _ => {},
-            e => {
-              console.log(e);
+            () => {
               stopScanProgress();
             },
           );
@@ -619,22 +685,18 @@ const DocumentUploadScreen: React.FC<IProps> = ({
   }, [docFront]);
 
   const showActionModalFn = useCallback(() => {
-    // Check if document already exists in Redux
     if (scanData && scanData.length > 0) {
       const latestScan = scanData[0];
       if (latestScan.Document_Image || latestScan.Portrait_Image) {
-        // Show existing document modal
         setShowExistingDocumentModal(true);
         return;
       }
     }
-    // No existing document, show action modal
     setShowActionModal(true);
   }, [scanData]);
 
   const handleUseExistingDocument = useCallback(() => {
     setShowExistingDocumentModal(false);
-    // Navigate to Face and Finger Enrollment
     if (onSubmitSuccess) {
       onSubmitSuccess();
     } else if (navigation) {
@@ -644,10 +706,10 @@ const DocumentUploadScreen: React.FC<IProps> = ({
 
   const handleUploadNewDocument = useCallback(() => {
     setShowExistingDocumentModal(false);
-    // Clear existing data and show action modal
     clearScanData();
     setIsCentreCodeEntered(false);
     setEnteredCentreCode('');
+    setIsLoadedFromExisting(false);
     setTimeout(() => {
       setShowActionModal(true);
     }, 300);
@@ -657,25 +719,13 @@ const DocumentUploadScreen: React.FC<IProps> = ({
     setShowDeleteConfirmModal(true);
   }, []);
 
-  const floatY = useMemo(
-    () =>
-      animations.floatAnim.interpolate({
-        inputRange: [0, 1],
-        outputRange: [0, -15],
-      }),
-    [animations.floatAnim],
-  );
-
-  const infoMessage = useMemo(() => {
-    if (!isCentreCodeEntered) {
-      return 'Both document and portrait required to proceed';
-    }
-    return `Centre Code: ${enteredCentreCode} • Click delete to change documents`;
-  }, [isCentreCodeEntered, enteredCentreCode]);
+  const fabRotate = fabRotateAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg'],
+  });
 
   return (
     <View style={styles.safeArea}>
-      {/* Action Selection Modal */}
       <Modal
         visible={showActionModal}
         transparent
@@ -726,18 +776,13 @@ const DocumentUploadScreen: React.FC<IProps> = ({
         </View>
       </Modal>
 
-      {/* Centre Code Input Modal */}
       <Modal
         visible={showCentreCodeModal}
         transparent
         animationType="fade"
-        onRequestClose={() => setShowCentreCodeModal(false)}>
+        onRequestClose={() => {}}>
         <View style={styles.modalOverlay}>
-          <TouchableOpacity
-            style={styles.modalBackground}
-            activeOpacity={1}
-            onPress={() => setShowCentreCodeModal(false)}
-          />
+          <View style={styles.modalBackground} />
           <View style={styles.centreCodeModalContent}>
             <Text style={styles.centreCodeModalTitle}>Enter Centre Code</Text>
             <Text style={styles.centreCodeModalSubtitle}>
@@ -752,24 +797,24 @@ const DocumentUploadScreen: React.FC<IProps> = ({
               onChangeText={setCentreCodeInput}
               autoCapitalize="characters"
               maxLength={10}
+              onSubmitEditing={handleCentreCodeSubmit}
             />
 
             <TouchableOpacity
               style={styles.centreCodeSubmitButton}
               onPress={handleCentreCodeSubmit}>
-              <Text style={styles.centreCodeSubmitButtonText}>Submit</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.centreCodeCancelButton}
-              onPress={() => setShowCentreCodeModal(false)}>
-              <Text style={styles.centreCodeCancelButtonText}>Cancel</Text>
+              <LinearGradient
+                colors={['#00D084', '#00B86E']}
+                start={{x: 0, y: 0}}
+                end={{x: 1, y: 0}}
+                style={styles.centreCodeSubmitButtonGradient}>
+                <Text style={styles.centreCodeSubmitButtonText}>Submit</Text>
+              </LinearGradient>
             </TouchableOpacity>
           </View>
         </View>
       </Modal>
 
-      {/* Delete Confirmation Modal */}
       <Modal
         visible={showDeleteConfirmModal}
         transparent
@@ -808,7 +853,6 @@ const DocumentUploadScreen: React.FC<IProps> = ({
         </View>
       </Modal>
 
-      {/* Error Modal */}
       <ValidationModal
         visible={showErrorModal}
         onClose={() => setShowErrorModal(false)}
@@ -825,7 +869,6 @@ const DocumentUploadScreen: React.FC<IProps> = ({
         numberBackgroundColor={colors.danger1}
       />
 
-      {/* Existing Document Modal */}
       <ExistingDocumentModal
         visible={showExistingDocumentModal}
         onClose={() => setShowExistingDocumentModal(false)}
@@ -836,7 +879,6 @@ const DocumentUploadScreen: React.FC<IProps> = ({
         scannedData={scanData && scanData.length > 0 ? scanData[0].scanned_json : undefined}
       />
 
-      {/* Document Zoom Modal */}
       <Modal
         visible={showDocumentZoomModal}
         transparent
@@ -858,13 +900,71 @@ const DocumentUploadScreen: React.FC<IProps> = ({
         </View>
       </Modal>
 
+      <Modal
+        visible={showAllDetailsModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowAllDetailsModal(false)}>
+        <View style={styles.allDetailsModalOverlay}>
+          <TouchableOpacity
+            style={styles.modalBackground}
+            activeOpacity={1}
+            onPress={() => setShowAllDetailsModal(false)}
+          />
+          <View style={styles.allDetailsModalContent}>
+            <View style={styles.allDetailsModalHeader}>
+              <Text style={styles.allDetailsModalTitle}>📄 All Document Details</Text>
+              <TouchableOpacity
+                onPress={() => setShowAllDetailsModal(false)}
+                style={styles.closeButton}>
+                <Text style={styles.closeButtonText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView
+              style={styles.allDetailsScrollView}
+              showsVerticalScrollIndicator={true}>
+              <View style={styles.allDetailsSection}>
+                <Text style={styles.allDetailsSectionTitle}>Basic Information</Text>
+
+                <View style={styles.allDetailsItem}>
+                  <Text style={styles.allDetailsItemLabel}>👤 Full Name</Text>
+                  <Text style={styles.allDetailsItemValue}>{fullName}</Text>
+                </View>
+
+                <View style={styles.allDetailsItem}>
+                  <Text style={styles.allDetailsItemLabel}>🏢 Centre Code</Text>
+                  <Text style={styles.allDetailsItemValue}>{enteredCentreCode}</Text>
+                </View>
+              </View>
+
+              {allTextFields.length > 0 && (
+                <View style={styles.allDetailsSection}>
+                  <Text style={styles.allDetailsSectionTitle}>Extracted Fields ({allTextFields.length})</Text>
+
+                  {allTextFields.map((field, index) => (
+                    <View key={index} style={styles.allDetailsItem}>
+                      <Text style={styles.allDetailsItemLabel}>{field.name}</Text>
+                      <Text style={styles.allDetailsItemValue}>{field.value}</Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
       {!isReadingRfidCustomUi && (
-          <LinearGradient
-            colors={[colors.sky1, colors.sky2, colors.sky3, colors.sky4]}
+        <LinearGradient
+          colors={['#F5F7FA', '#E8EBF0']}
           start={{x: 0, y: 0}}
-          end={{x: 0, y: 1}}
+          end={{x: 1, y: 1}}
           style={styles.container}>
-          <View style={styles.mainContainer}>
+          <ScrollView 
+            style={styles.scrollView}
+            contentContainerStyle={styles.scrollViewContent}
+            showsVerticalScrollIndicator={false}>
             {isScanning ? (
               <ScanLoader
                 scanProgress={scanProgress}
@@ -875,44 +975,151 @@ const DocumentUploadScreen: React.FC<IProps> = ({
               <>
                 <DocumentHeader fullName={fullName} />
 
-                <DocumentCard
-                  docFront={docFront}
-                  onZoomPress={openDocumentZoom}
-                  onDeletePress={showDeleteConfirmModalFn}
-                  showDeleteButton={isCentreCodeEntered}
-                  floatY={floatY}
-                  welcomeScaleAnim={animations.welcomeScaleAnim}
-                />
-
-                <PortraitCard portrait={portrait} />
-
-                {!isCentreCodeEntered && (
-                  <ActionButton
-                    onPress={showActionModalFn}
-                    text="Scan / Upload Document"
-                    icon="📷"
-                    animValue={animations.buttonPressAnim}
-                  />
-                )}
-
-                {isCentreCodeEntered && areImagesUploaded() && (
-                  <ActionButton
-                    onPress={handleSubmitButtonPress}
-                    text="Submit Document Verification"
-                    icon="✓"
-                    colors={[colors.green1, colors.green2]}
-                    animValue={animations.submitButtonAnim}
-                  />
-                )}
+                <RNAnimated.View
+                  style={[
+                    styles.documentCardWrapper,
+                    {
+                      transform: [{scale: cardScaleAnim}],
+                      opacity: cardOpacityAnim,
+                    },
+                  ]}>
+                  <LinearGradient
+                    colors={['#FFFFFF', '#F9FAFB']}
+                    start={{x: 0, y: 0}}
+                    end={{x: 1, y: 1}}
+                    style={styles.cardGradient}>
+                    <TouchableOpacity
+                      onPress={openDocumentZoom}
+                      activeOpacity={0.9}>
+                      <Image
+                        source={docFront}
+                        style={styles.documentImage}
+                        resizeMode="contain"
+                      />
+                      {isCentreCodeEntered && (
+                        <TouchableOpacity
+                          style={styles.deleteButtonOverlay}
+                          onPress={showDeleteConfirmModalFn}
+                          activeOpacity={0.8}>
+                          <LinearGradient
+                            colors={['#FF6B6B', '#EE5A52']}
+                            style={styles.deleteButtonGradient}>
+                            <Text style={styles.deleteButtonIcon}>✕</Text>
+                          </LinearGradient>
+                        </TouchableOpacity>
+                      )}
+                    </TouchableOpacity>
+                  </LinearGradient>
+                </RNAnimated.View>
 
                 {isCentreCodeEntered && (
-                  <CentreCodeDisplay centreCode={enteredCentreCode} />
+                  <RNAnimated.View
+                    style={[
+                      styles.scannedDetailsSection,
+                      {
+                        transform: [{translateY: detailsSlideAnim}],
+                        opacity: detailsOpacityAnim,
+                      },
+                    ]}>
+                    <LinearGradient
+                      colors={['#FFFFFF', '#F9FAFB']}
+                      start={{x: 0, y: 0}}
+                      end={{x: 1, y: 1}}
+                      style={styles.detailsGradient}>
+                      <View style={styles.detailsHeader}>
+                        <Text style={styles.detailsHeaderTitle}>📋 Document Details</Text>
+                      </View>
+
+                      <View style={styles.detailRow}>
+                        <View style={styles.detailLabelContainer}>
+                          <Text style={styles.detailLabelIcon}>👤</Text>
+                          <Text style={styles.detailLabel}>Full Name</Text>
+                        </View>
+                        <Text style={styles.detailValue}>{fullName}</Text>
+                      </View>
+
+                      <View style={styles.detailDivider} />
+
+                      <View style={styles.detailRow}>
+                        <View style={styles.detailLabelContainer}>
+                          <Text style={styles.detailLabelIcon}>🏢</Text>
+                          <Text style={styles.detailLabel}>Centre Code</Text>
+                        </View>
+                        <Text style={styles.detailValue}>{enteredCentreCode}</Text>
+                      </View>
+
+                      {allTextFields.length > 0 && (
+                        <>
+                          <View style={styles.detailDivider} />
+                          <View style={styles.extractedDetailsContainer}>
+                            <Text style={styles.extractedDetailsTitle}>📄 Extracted Information</Text>
+                            {allTextFields.slice(0, 5).map((field, index) => (
+                              <View key={index} style={styles.extractedDetailItem}>
+                                <Text style={styles.extractedDetailLabel}>
+                                  {field.name}
+                                </Text>
+                                <Text style={styles.extractedDetailValue}>
+                                  {field.value}
+                                </Text>
+                              </View>
+                            ))}
+                            {allTextFields.length > 5 && (
+                              <TouchableOpacity
+                                style={styles.moreDetailsContainer}
+                                onPress={() => setShowAllDetailsModal(true)}
+                                activeOpacity={0.7}>
+                                <Text style={styles.moreDetailsText}>
+                                  +{allTextFields.length - 5} more fields
+                                </Text>
+                              </TouchableOpacity>
+                            )}
+                          </View>
+                        </>
+                      )}
+                    </LinearGradient>
+                  </RNAnimated.View>
                 )}
 
-                <InfoBadge message={infoMessage} />
+                {isCentreCodeEntered && areImagesUploaded() && !isLoadedFromExisting && (
+                  <View style={styles.submitButtonContainer}>
+                    <LinearGradient
+                      colors={['#00D084', '#00B86E']}
+                      start={{x: 0, y: 0}}
+                      end={{x: 1, y: 0}}
+                      style={styles.submitButtonGradient}>
+                      <TouchableOpacity
+                        style={styles.submitButton}
+                        onPress={handleSubmitButtonPress}
+                        activeOpacity={0.7}>
+                        <Text style={styles.submitButtonText}>✓ Submit Document</Text>
+                      </TouchableOpacity>
+                    </LinearGradient>
+                  </View>
+                )}
               </>
             )}
-          </View>
+          </ScrollView>
+
+          <RNAnimated.View
+            style={[
+              styles.floatingActionButton,
+              {
+                transform: [{scale: fabScaleAnim}],
+              },
+            ]}>
+            <LinearGradient
+              colors={['#4F46E5', '#6366F1']}
+              start={{x: 0, y: 0}}
+              end={{x: 1, y: 1}}
+              style={styles.fabGradient}>
+              <TouchableOpacity
+                style={styles.fabTouchable}
+                onPress={showActionModalFn}
+                activeOpacity={0.7}>
+                <AnimatedCameraIcon size={28} color="#FFFFFF" />
+              </TouchableOpacity>
+            </LinearGradient>
+          </RNAnimated.View>
         </LinearGradient>
       )}
     </View>
@@ -929,16 +1136,17 @@ const styles = StyleSheet.create({
     marginHorizontal: 0,
     marginVertical: 0,
   },
-  mainContainer: {
+  scrollView: {
     flex: 1,
+  },
+  scrollViewContent: {
     paddingHorizontal: 12,
     paddingTop: 8,
-    paddingBottom: 8,
+    paddingBottom: 80,
   },
-  // Modal Styles
   modalOverlay: {
     flex: 1,
-    backgroundColor: colors.overlayBlack50,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -949,10 +1157,9 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
   },
-  // Action Modal
   actionModalContent: {
     backgroundColor: colors.white,
-    borderRadius: 20,
+    borderRadius: 24,
     padding: 24,
     width: '85%',
     maxWidth: 400,
@@ -965,14 +1172,14 @@ const styles = StyleSheet.create({
   actionModalTitle: {
     fontSize: 24,
     fontFamily: 'Sen-Bold',
-    color: colors.darkText,
+    color: '#2D3748',
     marginBottom: 8,
     textAlign: 'center',
   },
   actionModalSubtitle: {
     fontSize: 14,
     fontFamily: 'Sen-Regular',
-    color: colors.midGray,
+    color: '#718096',
     textAlign: 'center',
     marginBottom: 24,
   },
@@ -980,11 +1187,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
-    backgroundColor: colors.bgLight,
+    backgroundColor: '#F7FAFC',
     borderRadius: 12,
     marginBottom: 12,
-    borderWidth: 1,
-    borderColor: colors.borderGray,
+    borderWidth: 2,
+    borderColor: '#E2E8F0',
   },
   actionIconContainer: {
     width: 50,
@@ -1004,30 +1211,31 @@ const styles = StyleSheet.create({
   actionTitle: {
     fontSize: 16,
     fontFamily: 'Sen-Bold',
-    color: colors.darkText,
+    color: '#2D3748',
     marginBottom: 4,
   },
   actionDescription: {
     fontSize: 13,
     fontFamily: 'Sen-Regular',
-    color: colors.midGray,
+    color: '#718096',
   },
   cancelButton: {
-    backgroundColor: colors.grayLight2,
+    backgroundColor: '#F7FAFC',
     borderRadius: 12,
     paddingVertical: 14,
     marginTop: 8,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
   cancelButtonText: {
     fontSize: 16,
     fontFamily: 'Sen-SemiBold',
-    color: colors.midGray,
+    color: '#718096',
     textAlign: 'center',
   },
-  // Centre Code Modal
   centreCodeModalContent: {
     backgroundColor: colors.white,
-    borderRadius: 20,
+    borderRadius: 24,
     padding: 24,
     width: '85%',
     maxWidth: 400,
@@ -1040,34 +1248,42 @@ const styles = StyleSheet.create({
   centreCodeModalTitle: {
     fontSize: 22,
     fontFamily: 'Sen-Bold',
-    color: colors.darkText,
+    color: '#2D3748',
     marginBottom: 8,
     textAlign: 'center',
   },
   centreCodeModalSubtitle: {
     fontSize: 14,
     fontFamily: 'Sen-Regular',
-    color: colors.midGray,
+    color: '#718096',
     textAlign: 'center',
     marginBottom: 24,
   },
   centreCodeInput: {
-    backgroundColor: colors.bgLight,
+    backgroundColor: '#F7FAFC',
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 14,
     fontSize: 16,
     fontFamily: 'Sen-SemiBold',
-    color: colors.darkText,
-    borderWidth: 1,
-    borderColor: colors.borderGray,
+    color: '#2D3748',
+    borderWidth: 2,
+    borderColor: '#E2E8F0',
     marginBottom: 16,
   },
   centreCodeSubmitButton: {
-    backgroundColor: colors.bluePrimary,
     borderRadius: 12,
+    overflow: 'hidden',
+    elevation: 4,
+    shadowColor: '#00D084',
+    shadowOffset: {width: 0, height: 4},
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+  },
+  centreCodeSubmitButtonGradient: {
     paddingVertical: 14,
-    marginBottom: 12,
+    alignItems: 'center',
+    borderRadius: 12,
   },
   centreCodeSubmitButtonText: {
     fontSize: 16,
@@ -1075,21 +1291,9 @@ const styles = StyleSheet.create({
     color: colors.white,
     textAlign: 'center',
   },
-  centreCodeCancelButton: {
-    backgroundColor: colors.grayLight2,
-    borderRadius: 12,
-    paddingVertical: 14,
-  },
-  centreCodeCancelButtonText: {
-    fontSize: 16,
-    fontFamily: 'Sen-SemiBold',
-    color: colors.midGray,
-    textAlign: 'center',
-  },
-  // Delete Modal
   deleteModalContent: {
     backgroundColor: colors.white,
-    borderRadius: 20,
+    borderRadius: 24,
     padding: 24,
     width: '85%',
     maxWidth: 400,
@@ -1104,7 +1308,7 @@ const styles = StyleSheet.create({
     width: 70,
     height: 70,
     borderRadius: 35,
-    backgroundColor: colors.dangerLight,
+    backgroundColor: '#FFE5E5',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
@@ -1115,20 +1319,20 @@ const styles = StyleSheet.create({
   deleteModalTitle: {
     fontSize: 22,
     fontFamily: 'Sen-Bold',
-    color: colors.darkText,
+    color: '#2D3748',
     marginBottom: 8,
     textAlign: 'center',
   },
   deleteModalSubtitle: {
     fontSize: 14,
     fontFamily: 'Sen-Regular',
-    color: colors.midGray,
+    color: '#718096',
     textAlign: 'center',
     marginBottom: 24,
     lineHeight: 20,
   },
   deleteConfirmButton: {
-    backgroundColor: colors.danger1,
+    backgroundColor: '#FF6B6B',
     borderRadius: 12,
     paddingVertical: 14,
     width: '100%',
@@ -1141,21 +1345,22 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   deleteCancelButton: {
-    backgroundColor: colors.grayLight2,
+    backgroundColor: '#F7FAFC',
     borderRadius: 12,
     paddingVertical: 14,
     width: '100%',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
   deleteCancelButtonText: {
     fontSize: 16,
     fontFamily: 'Sen-SemiBold',
-    color: colors.midGray,
+    color: '#718096',
     textAlign: 'center',
   },
-  // Zoom Modal
   zoomModalOverlay: {
     flex: 1,
-    backgroundColor: colors.overlayBlack90,
+    backgroundColor: 'rgba(0, 0, 0, 0.9)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -1173,6 +1378,285 @@ const styles = StyleSheet.create({
   zoomedImage: {
     width: '100%',
     height: '100%',
+  },
+  documentCardWrapper: {
+    marginVertical: 12,
+    borderRadius: 16,
+    overflow: 'hidden',
+    elevation: 6,
+    shadowColor: '#000000',
+    shadowOffset: {width: 0, height: 4},
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+  },
+  cardGradient: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    padding: 12,
+  },
+  documentImage: {
+    width: '100%',
+    height: undefined,
+    aspectRatio: 1.586,
+    borderRadius: 8,
+  },
+  deleteButtonOverlay: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+  },
+  deleteButtonGradient: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 6,
+    shadowColor: '#FF6B6B',
+    shadowOffset: {width: 0, height: 3},
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+  },
+  deleteButtonIcon: {
+    fontSize: 18,
+    color: colors.white,
+    fontWeight: 'bold',
+  },
+  scannedDetailsSection: {
+    marginVertical: 10,
+    borderRadius: 14,
+    overflow: 'hidden',
+    elevation: 4,
+    shadowColor: '#000000',
+    shadowOffset: {width: 0, height: 3},
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+  },
+  detailsGradient: {
+    borderRadius: 14,
+    padding: 14,
+  },
+  detailsHeader: {
+    marginBottom: 10,
+    paddingBottom: 8,
+    borderBottomWidth: 1.5,
+    borderBottomColor: '#E2E8F0',
+  },
+  detailsHeaderTitle: {
+    fontSize: 14,
+    fontFamily: 'Sen-Bold',
+    color: '#2D3748',
+  },
+  detailRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  detailLabelContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 0.45,
+  },
+  detailLabelIcon: {
+    fontSize: 14,
+    marginRight: 6,
+  },
+  detailLabel: {
+    fontSize: 12,
+    fontFamily: 'Sen-SemiBold',
+    color: '#4A5568',
+    flex: 1,
+  },
+  detailValue: {
+    fontSize: 12,
+    fontFamily: 'Sen-Bold',
+    color: '#4F46E5',
+    flex: 0.55,
+    textAlign: 'right',
+  },
+  detailDivider: {
+    height: 1,
+    backgroundColor: '#E2E8F0',
+    marginVertical: 6,
+  },
+  extractedDetailsContainer: {
+    marginTop: 8,
+  },
+  extractedDetailsTitle: {
+    fontSize: 12,
+    fontFamily: 'Sen-Bold',
+    color: '#2D3748',
+    marginBottom: 8,
+    marginTop: 2,
+  },
+  extractedDetailItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 7,
+    paddingHorizontal: 10,
+    backgroundColor: 'rgba(79, 70, 229, 0.06)',
+    borderRadius: 8,
+    marginBottom: 6,
+    borderLeftWidth: 2,
+    borderLeftColor: '#4F46E5',
+  },
+  extractedDetailLabel: {
+    fontSize: 11,
+    fontFamily: 'Sen-SemiBold',
+    color: '#4A5568',
+    flex: 0.45,
+  },
+  extractedDetailValue: {
+    fontSize: 11,
+    fontFamily: 'Sen-Regular',
+    color: '#2D3748',
+    flex: 0.55,
+    textAlign: 'right',
+  },
+  moreDetailsContainer: {
+    paddingVertical: 7,
+    paddingHorizontal: 10,
+    backgroundColor: 'rgba(79, 70, 229, 0.04)',
+    borderRadius: 8,
+    marginTop: 2,
+  },
+  moreDetailsText: {
+    fontSize: 15,
+    fontFamily: 'Sen-SemiBold',
+    color: '#4F46E5',
+    textAlign: 'center',
+  },
+  submitButtonContainer: {
+    marginVertical: 12,
+    borderRadius: 12,
+    overflow: 'hidden',
+    elevation: 5,
+    shadowColor: '#00D084',
+    shadowOffset: {width: 0, height: 4},
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+  },
+  submitButtonGradient: {
+    borderRadius: 12,
+  },
+  submitButton: {
+    paddingVertical: 13,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  submitButtonText: {
+    fontSize: 15,
+    fontFamily: 'Sen-Bold',
+    color: colors.white,
+    textAlign: 'center',
+  },
+  floatingActionButton: {
+    position: 'absolute',
+    bottom: 20,
+    right: 20,
+    borderRadius: 30,
+    overflow: 'hidden',
+    elevation: 12,
+    shadowColor: '#4F46E5',
+    shadowOffset: {width: 0, height: 6},
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+  },
+  fabGradient: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fabTouchable: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  floatingActionButtonIcon: {
+    fontSize: 24,
+  },
+  allDetailsModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  allDetailsModalContent: {
+    backgroundColor: colors.white,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: '85%',
+    shadowColor: colors.black,
+    shadowOffset: {width: 0, height: -4},
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 10,
+  },
+  allDetailsModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+  },
+  allDetailsModalTitle: {
+    fontSize: 18,
+    fontFamily: 'Sen-Bold',
+    color: '#2D3748',
+  },
+  closeButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#F7FAFC',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  closeButtonText: {
+    fontSize: 20,
+    color: '#718096',
+    fontWeight: 'bold',
+  },
+  allDetailsScrollView: {
+    maxHeight: '100%',
+  },
+  allDetailsSection: {
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+  },
+  allDetailsSectionTitle: {
+    fontSize: 14,
+    fontFamily: 'Sen-Bold',
+    color: '#4F46E5',
+    marginBottom: 12,
+  },
+  allDetailsItem: {
+    backgroundColor: '#F7FAFC',
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 10,
+    borderLeftWidth: 3,
+    borderLeftColor: '#4F46E5',
+  },
+  allDetailsItemLabel: {
+    fontSize: 12,
+    fontFamily: 'Sen-SemiBold',
+    color: '#4A5568',
+    marginBottom: 4,
+  },
+  allDetailsItemValue: {
+    fontSize: 13,
+    fontFamily: 'Sen-Regular',
+    color: '#2D3748',
   },
 });
 

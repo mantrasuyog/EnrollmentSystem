@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, Animated, Dimensions } from 'react-native';
+import { colors } from '../common/colors';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -32,7 +33,7 @@ const styles = StyleSheet.create({
   securityBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(102, 126, 234, 0.1)',
+    backgroundColor: colors.white08,
     paddingHorizontal: Math.min(16, screenWidth * 0.035),
     paddingVertical: Math.min(10, screenWidth * 0.022),
     borderRadius: Math.min(20, screenWidth * 0.045),
@@ -43,11 +44,11 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontSize: Math.min(12, screenWidth * 0.028),
-    color: '#6b7280',
+    color: colors.midGray,
     fontFamily: 'Sen-SemiBold',
   },
   footerTextDark: {
-    color: '#9ca3af',
+    color: colors.placeholderGray,
   },
 });
 

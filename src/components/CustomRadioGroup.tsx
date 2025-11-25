@@ -1,6 +1,7 @@
 import React from 'react'
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
 import Icon from 'react-native-vector-icons/FontAwesome'
+import { colors } from '../common/colors'
 
 export interface RadioButtonProps {
   id: string
@@ -57,7 +58,7 @@ const styles = StyleSheet.create({
     width: 20,
     borderRadius: 10,
     borderWidth: 2,
-    borderColor: '#333',
+    borderColor: colors.darkText,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 10
@@ -66,11 +67,11 @@ const styles = StyleSheet.create({
     height: 10,
     width: 10,
     borderRadius: 5,
-    backgroundColor: '#667eea'
+    backgroundColor: colors.purple1
   },
   radioLabel: {
     fontSize: 14,
-    color: '#333',
+    color: colors.darkText,
     fontWeight: '500'
   }
 })

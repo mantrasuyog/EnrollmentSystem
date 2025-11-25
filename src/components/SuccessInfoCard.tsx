@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { colors } from '../common/colors';
 
 interface SuccessInfoCardProps {
   icon: string;
@@ -61,7 +62,7 @@ const styles = StyleSheet.create({
   },
   infoText: {
     fontSize: 12,
-    color: '#6B7280',
+    color: colors.midGray,
     fontFamily: 'Sen-Regular',
     marginTop: 6,
   },

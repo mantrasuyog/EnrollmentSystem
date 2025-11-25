@@ -61,8 +61,6 @@ const SuccessScreen = () => {
     return null;
   }, [scans]);
 
-  console.log("Scanned Data:", scannedData);
-
   const [copied, setCopied] = React.useState(false);
   const [showModal, setShowModal] = React.useState(false);
   const [showDocumentPreview, setShowDocumentPreview] = React.useState(false);

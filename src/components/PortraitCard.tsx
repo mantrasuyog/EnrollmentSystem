@@ -1,6 +1,7 @@
 import React, {memo} from 'react';
 import {View, Text, Image, StyleSheet, ImageSourcePropType} from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
+import { colors } from '../common/colors';
 
 interface PortraitCardProps {
   portrait: ImageSourcePropType | {uri: string};
@@ -13,7 +14,7 @@ const PortraitCard: React.FC<PortraitCardProps> = memo(({portrait}) => {
     <View style={styles.portraitSmallContainer}>
       <Text style={styles.portraitSmallLabel}>Portrait</Text>
       <LinearGradient
-        colors={['#f0f9ff', '#e0f2fe', '#bae6fd']}
+        colors={[colors.sky1, colors.sky2, colors.sky4]}
         start={{x: 0, y: 0}}
         end={{x: 0, y: 1}}
         style={styles.portraitSmallCard}>
@@ -40,7 +41,7 @@ const styles = StyleSheet.create({
   },
   portraitSmallLabel: {
     fontSize: 10,
-    color: '#1E293B',
+    color: colors.darkText,
     fontFamily: 'Sen-Bold',
     marginBottom: 4,
     textTransform: 'uppercase',
@@ -53,13 +54,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    shadowColor: '#6366f1',
+    shadowColor: colors.violet1,
     shadowOffset: {width: 0, height: 2},
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
     borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.9)',
+    borderColor: colors.white80,
   },
   portraitSmallFrame: {
     width: 45,
@@ -75,7 +76,7 @@ const styles = StyleSheet.create({
   portraitSmallStatus: {
     flex: 1,
     fontSize: 12,
-    color: '#1E293B',
+    color: colors.darkText,
     fontFamily: 'Sen-Bold',
     textAlign: 'center',
     letterSpacing: 0.3,

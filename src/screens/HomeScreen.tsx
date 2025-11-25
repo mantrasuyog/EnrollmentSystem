@@ -40,7 +40,6 @@ const HomeScreen = ({ navigation }: Props) => {
   const dispatch = useDispatch();
   const [showEnrollmentModal, setShowEnrollmentModal] = useState(false);
 
-  // Get Redux state
   const scanData = useSelector((state: RootState) => state.scan.scans[0]);
   const faceImage = useSelector((state: RootState) => state.faceEnrollment.enrolledImageBase64);
 
@@ -53,7 +52,6 @@ const HomeScreen = ({ navigation }: Props) => {
   const rotateAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
@@ -127,16 +125,9 @@ const HomeScreen = ({ navigation }: Props) => {
   }, []);
 
   const handleEnrollmentPress = useCallback(() => {
-    // Check if enrollment data exists in Redux
-    console.log('Enrollment button pressed');
-    console.log('scanData:', scanData ? 'exists' : 'null');
-    console.log('faceImage:', faceImage ? 'exists' : 'null');
-
     if (scanData || faceImage) {
-      console.log('Showing enrollment modal');
       setShowEnrollmentModal(true);
     } else {
-      console.log('Navigating to DashboardScreen');
       (navigation as any).navigate('DashboardScreen');
     }
   }, [navigation, scanData, faceImage]);
@@ -162,13 +153,9 @@ const HomeScreen = ({ navigation }: Props) => {
   }, []);
 
   const handleEnrollNew = useCallback(() => {
-    console.log('Clearing enrollment data from Redux');
-    // Clear both Redux slices
     dispatch(clearScanData());
     dispatch(clearEnrolledImage());
-    // Close the modal
     setShowEnrollmentModal(false);
-    // Navigate to dashboard for new enrollment
     (navigation as any).navigate('DashboardScreen');
   }, [dispatch, navigation]);
 
@@ -184,14 +171,12 @@ const HomeScreen = ({ navigation }: Props) => {
         barStyle="dark-content"
       />
       <View style={styles.container}>
-        {}
         <HeroSection
           fadeAnim={fadeAnim}
           pulseAnim={pulseAnim}
           isDarkMode={isDarkMode}
         />
 
-        {}
         <EnrollmentStatusModal
           visible={showEnrollmentModal}
           onClose={() => setShowEnrollmentModal(false)}
@@ -202,14 +187,12 @@ const HomeScreen = ({ navigation }: Props) => {
           }}
         />
 
-        {}
         <Animated.View style={{ opacity: fadeAnim }}>
           <Text style={[styles.optionsTitle, isDarkMode && styles.textDark]}>
             Choose an option to continue
           </Text>
         </Animated.View>
 
-        {}
         <View style={styles.cardsContainer}>
           <HomeActionCard
             title="New Enrollment"
@@ -241,7 +224,6 @@ const HomeScreen = ({ navigation }: Props) => {
           />
         </View>
 
-        {}
         <SecurityFooter
           fadeAnim={fadeAnim}
           isDarkMode={isDarkMode}

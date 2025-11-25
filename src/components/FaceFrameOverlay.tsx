@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
+import { colors } from '../common/colors';
 
 interface FaceFrameOverlayProps {
   headerAnim: Animated.Value;
@@ -41,7 +42,7 @@ const FaceFrameOverlay = React.memo<FaceFrameOverlayProps>(({
           style={[
             styles.faceFrame,
             {
-              borderColor: isValidFace ? '#4CAF50' : '#4A90E2',
+              borderColor: isValidFace ? colors.green1 : colors.primaryBlue,
               transform: [
                 { scale: pulseAnim },
                 { scale: frameAnim.interpolate({ inputRange: [0, 1], outputRange: [0.8, 1] }) }
@@ -71,20 +72,20 @@ const styles = StyleSheet.create({
     paddingTop: 60,
     paddingHorizontal: 20,
     paddingBottom: 20,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    backgroundColor: colors.overlayBlack60,
     alignItems: 'center',
     zIndex: 1,
   },
   title: {
     fontSize: 28,
     fontFamily: 'Sen-Bold',
-    color: '#fff',
+    color: colors.white,
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
     fontFamily: 'Sen-Regular',
-    color: '#B0BEC5',
+    color: colors.placeholderGray,
   },
   faceFrameContainer: {
     flex: 1,
@@ -103,7 +104,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     width: 35,
     height: 35,
-    borderColor: '#fff',
+    borderColor: colors.white,
   },
   topLeft: {
     top: -2,

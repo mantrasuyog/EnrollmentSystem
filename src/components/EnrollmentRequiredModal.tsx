@@ -9,6 +9,7 @@ import {
   Dimensions,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
+import { colors } from '../common/colors';
 
 const {width} = Dimensions.get('window');
 
@@ -111,7 +112,7 @@ const EnrollmentRequiredModal: React.FC<EnrollmentRequiredModalProps> = memo(
               onPress={onClose}
               activeOpacity={0.8}>
               <LinearGradient
-                colors={['#667eea', '#764ba2']}
+                colors={[colors.purple1, colors.purple2]}
                 start={{x: 0, y: 0}}
                 end={{x: 1, y: 1}}
                 style={styles.enrollmentRequiredButtonGradient}>
@@ -130,19 +131,19 @@ EnrollmentRequiredModal.displayName = 'EnrollmentRequiredModal';
 const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    backgroundColor: colors.overlayBlack80,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
   },
   enrollmentRequiredContainer: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.white,
     borderRadius: 28,
     padding: 32,
     width: width - 60,
     maxWidth: 400,
     alignItems: 'center',
-    shadowColor: '#667eea',
+    shadowColor: colors.purple1,
     shadowOffset: {width: 0, height: 15},
     shadowOpacity: 0.4,
     shadowRadius: 25,
@@ -158,10 +159,10 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: '#667eea',
+    backgroundColor: colors.purple1,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#667eea',
+    shadowColor: colors.purple1,
     shadowOffset: {width: 0, height: 8},
     shadowOpacity: 0.5,
     shadowRadius: 16,
@@ -172,7 +173,7 @@ const styles = StyleSheet.create({
     width: 120,
     height: 120,
     borderRadius: 60,
-    backgroundColor: '#667eea',
+    backgroundColor: colors.purple1,
     opacity: 0.2,
   },
   enrollmentRequiredIconText: {
@@ -181,14 +182,14 @@ const styles = StyleSheet.create({
   enrollmentRequiredTitle: {
     fontSize: 24,
     fontFamily: 'Sen-Bold',
-    color: '#1e293b',
+    color: colors.darkText,
     marginBottom: 12,
     textAlign: 'center',
   },
   enrollmentRequiredMessage: {
     fontSize: 15,
     fontFamily: 'Sen-Regular',
-    color: '#64748b',
+    color: colors.midGray,
     textAlign: 'center',
     lineHeight: 22,
     marginBottom: 24,
@@ -196,12 +197,12 @@ const styles = StyleSheet.create({
   },
   enrollmentRequiredStepsContainer: {
     width: '100%',
-    backgroundColor: '#f8fafc',
+    backgroundColor: colors.bgLight,
     borderRadius: 16,
     padding: 16,
     marginBottom: 24,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: colors.borderGray,
   },
   enrollmentRequiredStep: {
     flexDirection: 'row',
@@ -212,12 +213,12 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#fff',
+    backgroundColor: colors.white,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 14,
     borderWidth: 2,
-    borderColor: '#667eea',
+    borderColor: colors.purple1,
   },
   enrollmentRequiredStepIconText: {
     fontSize: 20,
@@ -226,13 +227,13 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     fontFamily: 'Sen-SemiBold',
-    color: '#334155',
+    color: colors.darkText,
   },
   enrollmentRequiredButton: {
     width: '100%',
     borderRadius: 14,
     overflow: 'hidden',
-    shadowColor: '#667eea',
+    shadowColor: colors.purple1,
     shadowOffset: {width: 0, height: 6},
     shadowOpacity: 0.4,
     shadowRadius: 12,
@@ -246,7 +247,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
   },
   enrollmentRequiredButtonText: {
-    color: '#fff',
+    color: colors.white,
     fontSize: 17,
     fontFamily: 'Sen-Bold',
     letterSpacing: 0.5,

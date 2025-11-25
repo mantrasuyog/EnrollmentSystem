@@ -4,7 +4,6 @@ import {Animated, Dimensions} from 'react-native';
 const {height} = Dimensions.get('window');
 
 export const useAnimations = () => {
-  
   const slideAnim = useRef(new Animated.Value(height)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const blurOpacity = useRef(new Animated.Value(0)).current;
@@ -58,7 +57,6 @@ export const useAnimations = () => {
     startWelcomeAnimation();
 
     return () => {
-      
       pulseAnimationRef.current?.stop();
       loaderAnimationRef.current?.stop();
       floatAnimationRef.current?.stop();
@@ -203,7 +201,6 @@ export const useAnimations = () => {
   };
 
   return {
-    
     slideAnim,
     fadeAnim,
     blurOpacity,
@@ -235,7 +232,6 @@ export const useAnimations = () => {
     bubble1Anim,
     bubble2Anim,
     bubble3Anim,
-    
     startLoaderAnimation,
     stopLoaderAnimation,
     startBubbleAnimations,

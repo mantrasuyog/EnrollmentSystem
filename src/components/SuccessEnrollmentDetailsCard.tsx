@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
+import { colors } from '../common/colors';
 
 interface SuccessEnrollmentDetailsCardProps {
   enrollmentDate: string;
@@ -52,11 +53,11 @@ SuccessEnrollmentDetailsCard.displayName = 'SuccessEnrollmentDetailsCard';
 
 const styles = StyleSheet.create({
   enrollmentDetailsCard: {
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.grayLight2,
     padding: 14,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.borderGray,
     marginBottom: 14,
   },
   detailsRow: {
@@ -64,7 +65,7 @@ const styles = StyleSheet.create({
   },
   detailLabel: {
     fontSize: 11,
-    color: '#9CA3AF',
+    color: colors.placeholderGray,
     fontFamily: 'Sen-Regular',
   },
   detailValue: {
@@ -73,12 +74,12 @@ const styles = StyleSheet.create({
   },
   divider: {
     width: 1,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: colors.borderGray,
     marginLeft: 12,
   },
   dividerother: {
     width: 1,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: colors.borderGray,
     marginLeft: 6,
   },
   statusContainer: {
@@ -89,11 +90,11 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#10B981',
+    backgroundColor: colors.green1,
   },
   statusText: {
     fontSize: 13,
-    color: '#10B981',
+    color: colors.green1,
     fontFamily: 'Sen-SemiBold',
     marginLeft: 5,
   },

@@ -1,5 +1,6 @@
 import React, {memo} from 'react';
 import {View, Text, StyleSheet} from 'react-native';
+import { colors } from '../common/colors';
 
 interface InfoBadgeProps {
   message: string;
@@ -27,12 +28,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: '#EFF6FF',
+    backgroundColor: colors.blueLightBg,
     borderRadius: 10,
     padding: 10,
     borderLeftWidth: 3,
-    borderLeftColor: '#3B82F6',
-    shadowColor: '#3B82F6',
+    borderLeftColor: colors.bluePrimary,
+    shadowColor: colors.bluePrimary,
     shadowOffset: {width: 0, height: 2},
     shadowOpacity: 0.08,
     shadowRadius: 4,
@@ -44,7 +45,7 @@ const styles = StyleSheet.create({
   infoBadgeText: {
     flex: 1,
     fontSize: 11,
-    color: '#1E293B',
+    color: colors.darkText,
     fontFamily: 'Sen-SemiBold',
     lineHeight: 15,
   },

@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
+import { colors } from '../common/colors';
 
 interface SuccessCheckmarkProps {
   scaleAnim: Animated.Value;
@@ -60,13 +61,13 @@ const styles = StyleSheet.create({
     width: 70,
     height: 70,
     borderRadius: 35,
-    backgroundColor: '#10B981',
+    backgroundColor: colors.green1,
     justifyContent: 'center',
     alignItems: 'center',
   },
   checkmarkText: {
     fontSize: 40,
-    color: '#fff',
+    color: colors.white,
     fontFamily: 'Sen-Bold',
   },
 });

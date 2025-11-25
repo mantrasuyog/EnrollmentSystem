@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native';
+import { colors } from '../common/colors';
 
 interface FaceCaptureButtonProps {
   onPress: () => void;
@@ -64,11 +65,11 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#fff',
+    backgroundColor: colors.white,
     justifyContent: 'center',
     alignItems: 'center',
     elevation: 10,
-    shadowColor: '#000',
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.4,
     shadowRadius: 10,
@@ -77,16 +78,16 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: '#4A90E2',
+    backgroundColor: colors.primaryBlue,
     borderWidth: 3,
-    borderColor: '#fff',
+    borderColor: colors.white,
   },
   captureButtonText: {
     marginTop: 12,
-    color: '#fff',
+    color: colors.white,
     fontSize: 16,
     fontFamily: 'Sen-SemiBold',
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    backgroundColor: colors.overlayBlack60,
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,

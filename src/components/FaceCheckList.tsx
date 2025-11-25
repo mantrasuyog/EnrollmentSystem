@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
 import { Face } from '@react-native-ml-kit/face-detection';
+import { colors } from '../common/colors';
 
 interface CheckItemProps {
   label: string;
@@ -89,7 +90,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 30,
     left: 20,
-    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+    backgroundColor: colors.overlayBlack80,
     borderRadius: 15,
     padding: 15,
     maxWidth: 200,
@@ -105,27 +106,27 @@ const styles = StyleSheet.create({
     height: 20,
     borderRadius: 10,
     borderWidth: 2,
-    borderColor: '#757575',
+    borderColor: colors.midGray,
     marginRight: 10,
     justifyContent: 'center',
     alignItems: 'center',
   },
   checkboxChecked: {
-    backgroundColor: '#4CAF50',
-    borderColor: '#4CAF50',
+    backgroundColor: colors.green1,
+    borderColor: colors.green1,
   },
   checkboxIcon: {
-    color: '#fff',
+    color: colors.white,
     fontSize: 14,
     fontFamily: 'Sen-Bold',
   },
   checkLabel: {
-    color: '#9E9E9E',
+    color: colors.placeholderGray,
     fontSize: 14,
     fontFamily: 'Sen-Regular',
   },
   checkLabelChecked: {
-    color: '#fff',
+    color: colors.white,
     fontFamily: 'Sen-SemiBold',
   },
 });

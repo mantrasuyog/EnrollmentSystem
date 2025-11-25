@@ -1,5 +1,6 @@
 import React, {memo} from 'react';
 import {View, Text, StyleSheet} from 'react-native';
+import { colors } from '../common/colors';
 
 interface CentreCodeDisplayProps {
   centreCode: string;
@@ -25,12 +26,12 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   centreCodeDisplayBadge: {
-    backgroundColor: '#EEF2FF',
+    backgroundColor: colors.lightBlue1,
     borderRadius: 10,
     padding: 10,
     borderLeftWidth: 3,
-    borderLeftColor: '#6366f1',
-    shadowColor: '#6366f1',
+    borderLeftColor: colors.violet1,
+    shadowColor: colors.violet1,
     shadowOffset: {width: 0, height: 2},
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -38,7 +39,7 @@ const styles = StyleSheet.create({
   },
   centreCodeDisplayLabel: {
     fontSize: 9,
-    color: '#6366f1',
+    color: colors.violet1,
     fontFamily: 'Sen-Bold',
     textTransform: 'uppercase',
     letterSpacing: 0.8,
@@ -46,7 +47,7 @@ const styles = StyleSheet.create({
   },
   centreCodeDisplayValue: {
     fontSize: 14,
-    color: '#4338ca',
+    color: colors.violet1,
     fontFamily: 'Sen-Bold',
     letterSpacing: 1,
   },

@@ -6,6 +6,8 @@ import {
   Animated,
   Dimensions,
   SafeAreaView,
+  Alert,
+  ActivityIndicator,
 } from 'react-native'
 import React, { useCallback, useState, memo } from 'react'
 import { useNavigation } from '@react-navigation/native'
@@ -19,6 +21,7 @@ import ReplaceImageModal from '../components/ReplaceImageModal'
 import EnrollmentRequiredModal from '../components/EnrollmentRequiredModal'
 import AnimatedBubble from '../components/AnimatedBubble'
 import { useEnrollmentAnimations } from '../hooks/useEnrollmentAnimations'
+import ApiResponseDialog from '../components/ApiResponseDialog'
 
 const { height } = Dimensions.get('window')
 
@@ -72,10 +75,12 @@ Header.displayName = 'Header'
 
 const Footer = memo(({
   isComponent,
-  onProceedToNext
+  onProceedToNext,
+  isSubmitting
 }: {
   isComponent: boolean
   onProceedToNext?: () => void
+  isSubmitting?: boolean
 }) => (
   <View style={styles.footer}>
     <Text style={styles.footerText}>
@@ -84,9 +89,10 @@ const Footer = memo(({
 
     {isComponent && onProceedToNext && (
       <TouchableOpacity
-        style={styles.doneButton}
+        style={[styles.doneButton, isSubmitting && styles.doneButtonDisabled]}
         onPress={onProceedToNext}
         activeOpacity={0.8}
+        disabled={isSubmitting}
       >
         <LinearGradient
           colors={[colors.green1, colors.green2]}
@@ -94,9 +100,18 @@ const Footer = memo(({
           end={{ x: 1, y: 1 }}
           style={styles.doneButtonGradient}
         >
-          <Text style={styles.doneButtonText}>
-            ✓ Done with Biometric Enrollment
-          </Text>
+          {isSubmitting ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator color={colors.white} size="small" />
+              <Text style={[styles.doneButtonText, styles.loadingText]}>
+                Submitting...
+              </Text>
+            </View>
+          ) : (
+            <Text style={styles.doneButtonText}>
+              ✓ Done with Biometric Enrollment
+            </Text>
+          )}
         </LinearGradient>
       </TouchableOpacity>
     )}
@@ -113,10 +128,21 @@ const FaceAndFingerEnrollmentScreen = ({
 }: FaceAndFingerEnrollmentScreenProps) => {
   const navigation = useNavigation()
   const dispatch = useDispatch()
-  const existingEnrolledImage = useSelector((state: RootState) => state.faceEnrollment.enrolledImageBase64)
+  const existingEnrolledImage = useSelector((state: RootState) => state.faceEnrollment.enrolledImageBase64) as string | null
+  const scanData = useSelector((state: RootState) => state.scan.scans[0]) // Get first scan data
 
   const [showReplaceModal, setShowReplaceModal] = useState(false)
   const [showEnrollmentRequiredModal, setShowEnrollmentRequiredModal] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [apiResponse, setApiResponse] = useState<{
+    visible: boolean
+    type: 'success' | 'error'
+    message: string
+  }>({
+    visible: false,
+    type: 'success',
+    message: '',
+  })
 
   const animations = useEnrollmentAnimations()
 
@@ -129,7 +155,6 @@ const FaceAndFingerEnrollmentScreen = ({
   }, [onFacePress, navigation])
 
   const handleFacePress = useCallback(() => {
-    console.log('Face Scan Pressed')
     Animated.sequence([
       Animated.timing(animations.faceScaleAnim, {
         toValue: 0.92,
@@ -181,20 +206,163 @@ const FaceAndFingerEnrollmentScreen = ({
     })
   }, [animations.fingerScaleAnim, onFingerPress, navigation])
 
-  const handleProceedToNext = useCallback(() => {
+  const handleProceedToNext = useCallback(async () => {
     if (!existingEnrolledImage) {
       setShowEnrollmentRequiredModal(true)
       return
     }
 
-    if (onProceedToNext) {
-      onProceedToNext()
+    if (!scanData) {
+      Alert.alert('Error', 'No scan data found. Please complete document scanning first.')
+      return
     }
-  }, [existingEnrolledImage, onProceedToNext])
+
+    try {
+      setIsSubmitting(true)
+
+      let parsedScannedJson
+      try {
+        parsedScannedJson = typeof scanData.scanned_json === 'string'
+          ? JSON.parse(scanData.scanned_json)
+          : scanData.scanned_json
+      } catch (e) {
+        parsedScannedJson = []
+      }
+
+      let scannedJsonObject: Record<string, any> = {}
+      if (Array.isArray(parsedScannedJson)) {
+        parsedScannedJson.forEach((item: any) => {
+          if (item.name && item.value !== undefined) {
+            scannedJsonObject[item.name] = item.value
+          }
+        })
+      } else if (typeof parsedScannedJson === 'object') {
+        scannedJsonObject = parsedScannedJson
+      }
+
+      let cleanedName = scanData.Name || ''
+      if (cleanedName.startsWith('Name\n')) {
+        cleanedName = cleanedName.replace('Name\n', '').trim()
+      } else if (cleanedName.startsWith('Name')) {
+        cleanedName = cleanedName.replace('Name', '').trim()
+      }
+
+      const apiRequestBody = {
+        center_code: scanData.Centre_Code,
+        document_image: scanData.Document_Image,
+        name: cleanedName,
+        portrait_image: scanData.Portrait_Image,
+        registration_id: scanData.Registration_Number,
+        scanned_json: scannedJsonObject,
+      }
+
+      const API_URL = 'http://10.65.21.124:8010/api/v1/users/'
+
+      const response = await fetch(API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(apiRequestBody),
+      })
+
+      const responseData = await response.json()
+
+      if (response.ok) {
+        try {
+          const templateEnrollmentBody = {
+            biometric_data: {
+              face: existingEnrolledImage,
+            },
+            registration_id: scanData.Registration_Number,
+          }
+
+          const templateApiUrl = 'http://10.65.21.124:8010/api/v1/template/enroll'
+
+          const templateResponse = await fetch(templateApiUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(templateEnrollmentBody),
+          })
+
+          const templateResponseData = await templateResponse.json()
+
+          if (templateResponse.ok) {
+            setApiResponse({
+              visible: true,
+              type: 'success',
+              message: templateResponseData.message || 'Biometric enrollment completed successfully!',
+            })
+          } else {
+            let errorMessage = 'Template enrollment failed. Please try again.'
+            if (templateResponseData.detail) {
+              errorMessage = templateResponseData.detail
+            } else if (templateResponseData.message) {
+              errorMessage = templateResponseData.message
+            } else if (templateResponseData.error) {
+              errorMessage = templateResponseData.error
+            } else if (typeof templateResponseData === 'string') {
+              errorMessage = templateResponseData
+            }
+
+            setApiResponse({
+              visible: true,
+              type: 'error',
+              message: `User registration succeeded but template enrollment failed: ${errorMessage}`,
+            })
+          }
+        } catch (templateError: any) {
+          setApiResponse({
+            visible: true,
+            type: 'error',
+            message: `User registration succeeded but template enrollment failed: ${templateError.message || 'Network error'}`,
+          })
+        }
+      } else {
+        let errorMessage = 'Failed to submit enrollment. Please try again.'
+        if (responseData.detail) {
+          errorMessage = responseData.detail
+        } else if (responseData.message) {
+          errorMessage = responseData.message
+        } else if (responseData.error) {
+          errorMessage = responseData.error
+        } else if (typeof responseData === 'string') {
+          errorMessage = responseData
+        }
+
+        setApiResponse({
+          visible: true,
+          type: 'error',
+          message: errorMessage,
+        })
+      }
+    } catch (error: any) {
+      setApiResponse({
+        visible: true,
+        type: 'error',
+        message: error.message || 'Network error. Please check your connection and try again.',
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
+  }, [existingEnrolledImage, scanData, onProceedToNext])
 
   const closeEnrollmentRequiredModal = useCallback(() => {
     setShowEnrollmentRequiredModal(false)
   }, [])
+
+  const handleApiResponseClose = useCallback(() => {
+    setApiResponse({
+      visible: false,
+      type: 'success',
+      message: '',
+    })
+    if (apiResponse.type === 'success' && onProceedToNext) {
+      onProceedToNext()
+    }
+  }, [apiResponse.type, onProceedToNext])
 
   const Content = memo(() => (
     <>
@@ -235,6 +403,7 @@ const FaceAndFingerEnrollmentScreen = ({
       <Footer
         isComponent={isComponent}
         onProceedToNext={handleProceedToNext}
+        isSubmitting={isSubmitting}
       />
     </>
   ))
@@ -255,6 +424,12 @@ const FaceAndFingerEnrollmentScreen = ({
           visible={showEnrollmentRequiredModal}
           onClose={closeEnrollmentRequiredModal}
         />
+        <ApiResponseDialog
+          visible={apiResponse.visible}
+          type={apiResponse.type}
+          message={apiResponse.message}
+          onClose={handleApiResponseClose}
+        />
       </View>
     )
   }
@@ -271,6 +446,12 @@ const FaceAndFingerEnrollmentScreen = ({
       <EnrollmentRequiredModal
         visible={showEnrollmentRequiredModal}
         onClose={closeEnrollmentRequiredModal}
+      />
+      <ApiResponseDialog
+        visible={apiResponse.visible}
+        type={apiResponse.type}
+        message={apiResponse.message}
+        onClose={handleApiResponseClose}
       />
     </SafeAreaView>
   )
@@ -354,6 +535,18 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: 'Sen-Bold',
     letterSpacing: 0.3,
+  },
+  doneButtonDisabled: {
+    opacity: 0.6,
+  },
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  loadingText: {
+    marginLeft: 8,
   },
 })
 

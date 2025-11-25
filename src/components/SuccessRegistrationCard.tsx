@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
+import { colors } from '../common/colors';
 
 interface SuccessRegistrationCardProps {
   registrationNumber: string;
@@ -31,7 +32,7 @@ const SuccessRegistrationCard = React.memo<SuccessRegistrationCardProps>(({
       }}
     >
       <LinearGradient
-        colors={['#D1D5DB', '#FFFFFF']}
+        colors={[colors.borderGray, colors.white]}
         start={{ x: 0, y: 0 }}
         end={{ x: 0, y: 1 }}
         style={styles.registrationCard}
@@ -107,7 +108,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   actionButtonGrey: {
-    backgroundColor: 'rgba(0,0,0,0.1)',
+    backgroundColor: colors.black20,
   },
   buttonIcon: {
     fontSize: 14,
@@ -117,7 +118,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Sen-SemiBold',
   },
   actionButtonTextGrey: {
-    color: '#374151',
+    color: colors.darkText,
   },
 });
 

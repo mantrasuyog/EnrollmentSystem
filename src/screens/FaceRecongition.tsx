@@ -192,8 +192,7 @@ const FaceRecognition = () => {
           }, 1500);
         }
       }
-    } catch (error) {
-      console.error('Face detection error:', error);
+    } catch {
       setValidationStatus('Detection error');
       setShowCaptureButton(false);
     }
@@ -222,7 +221,6 @@ const FaceRecognition = () => {
         ]),
       ]).start();
     } catch (error) {
-      console.error('Manual capture error:', error);
       Alert.alert('Error', (error as CameraCaptureError).message || 'Failed to capture photo');
     } finally {
       isProcessingRef.current = false;
@@ -264,8 +262,7 @@ const FaceRecognition = () => {
 
       await processAndValidateFace(photo.path);
     } catch (error) {
-      
-      console.error('Periodic detection error:', error);
+
     } finally {
       isProcessingRef.current = false;
     }
@@ -320,10 +317,8 @@ const FaceRecognition = () => {
         const imagePath = capturedImage.replace('file://', '');
         const base64String = await RNFS.readFile(imagePath, 'base64');
         dispatch(setEnrolledImage(base64String));
-        console.log('Face enrolled successfully and stored in Redux');
       }
     } catch (error) {
-      console.error('Error converting image to base64:', error);
       Alert.alert('Error', 'Failed to save the face image');
       return;
     }
