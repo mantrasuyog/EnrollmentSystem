@@ -3,7 +3,6 @@ import {
   StyleSheet,
   View,
   Platform,
-  Alert,
   Dimensions,
   Modal,
   Text,
@@ -46,6 +45,7 @@ import DocumentHeader from '../components/DocumentHeader';
 import ValidationModal from '../components/ValidationModal';
 import ExistingDocumentModal from '../components/ExistingDocumentModal';
 import AnimatedCameraIcon from '../components/AnimatedCameraIcon';
+import CommonAlertModal from '../components/CommonAlertModal';
 
 import {useAnimations} from '../hooks/useAnimations';
 
@@ -95,6 +95,15 @@ const DocumentUploadScreen: React.FC<IProps> = ({
   const [rfidUIHeaderColor, setRfidUIHeaderColor] = useState('black');
   const [rfidDescription, setRfidDescription] = useState('');
   const [rfidProgress, setRfidProgress] = useState(-1);
+  const [alertModal, setAlertModal] = useState<{
+    visible: boolean;
+    title: string;
+    message: string;
+  }>({
+    visible: false,
+    title: '',
+    message: '',
+  });
 
   const scanProgressInterval = useRef<ReturnType<typeof setInterval> | null>(null);
   const isReadingRfid = useRef(false);
@@ -658,12 +667,20 @@ const DocumentUploadScreen: React.FC<IProps> = ({
 
   const handleCentreCodeSubmit = useCallback(() => {
     if (centreCodeInput.trim() === '') {
-      Alert.alert('Error', 'Please enter Centre Code');
+      setAlertModal({
+        visible: true,
+        title: 'Error',
+        message: 'Please enter Centre Code',
+      });
       return;
     }
 
     if (centreCodeInput.length < 4) {
-      Alert.alert('Error', 'Centre Code must be at least 4 characters');
+      setAlertModal({
+        visible: true,
+        title: 'Error',
+        message: 'Centre Code must be at least 4 characters',
+      });
       return;
     }
 
@@ -717,6 +734,14 @@ const DocumentUploadScreen: React.FC<IProps> = ({
 
   const showDeleteConfirmModalFn = useCallback(() => {
     setShowDeleteConfirmModal(true);
+  }, []);
+
+  const handleAlertModalClose = useCallback(() => {
+    setAlertModal({
+      visible: false,
+      title: '',
+      message: '',
+    });
   }, []);
 
   const fabRotate = fabRotateAnim.interpolate({
@@ -903,9 +928,9 @@ const DocumentUploadScreen: React.FC<IProps> = ({
       <Modal
         visible={showAllDetailsModal}
         transparent
-        animationType="slide"
+        animationType="fade"
         onRequestClose={() => setShowAllDetailsModal(false)}>
-        <View style={styles.allDetailsModalOverlay}>
+        <View style={styles.allDetailsModalOverlayCentered}>
           <TouchableOpacity
             style={styles.modalBackground}
             activeOpacity={1}
@@ -923,6 +948,7 @@ const DocumentUploadScreen: React.FC<IProps> = ({
 
             <ScrollView
               style={styles.allDetailsScrollView}
+              contentContainerStyle={styles.allDetailsScrollViewContent}
               showsVerticalScrollIndicator={true}>
               <View style={styles.allDetailsSection}>
                 <Text style={styles.allDetailsSectionTitle}>Basic Information</Text>
@@ -1122,6 +1148,12 @@ const DocumentUploadScreen: React.FC<IProps> = ({
           </RNAnimated.View>
         </LinearGradient>
       )}
+      <CommonAlertModal
+        visible={alertModal.visible}
+        title={alertModal.title}
+        message={alertModal.message}
+        onClose={handleAlertModalClose}
+      />
     </View>
   );
 };
@@ -1586,13 +1618,19 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'flex-end',
   },
+  allDetailsModalOverlayCentered: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   allDetailsModalContent: {
     backgroundColor: colors.white,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    maxHeight: '85%',
+    borderRadius: 24,
+    maxHeight: '80%',
+    width: '90%',
     shadowColor: colors.black,
-    shadowOffset: {width: 0, height: -4},
+    shadowOffset: {width: 0, height: 4},
     shadowOpacity: 0.15,
     shadowRadius: 12,
     elevation: 10,
@@ -1625,7 +1663,11 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   allDetailsScrollView: {
-    maxHeight: '100%',
+    flexGrow: 0,
+    maxHeight: 400,
+  },
+  allDetailsScrollViewContent: {
+    paddingBottom: 20,
   },
   allDetailsSection: {
     paddingHorizontal: 20,

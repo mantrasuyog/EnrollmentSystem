@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  Alert,
   ActivityIndicator,
   Image,
   Animated,
@@ -30,6 +29,7 @@ import FaceCaptureButton from '../components/FaceCaptureButton';
 import FacePreviewCard from '../components/FacePreviewCard';
 import FaceEnrollmentDialog, { FaceReplaceDialog } from '../components/FaceEnrollmentDialog';
 import { colors } from '../common/colors';
+import CommonAlertModal from '../components/CommonAlertModal';
 
 const { height } = Dimensions.get('window');
 const TARGET_FPS = 30;
@@ -50,6 +50,15 @@ const FaceRecognition = () => {
   const [showCaptureButton, setShowCaptureButton] = useState(false);
   const [showEnrollDialog, setShowEnrollDialog] = useState(false);
   const [showReplaceDialog, setShowReplaceDialog] = useState(false);
+  const [alertModal, setAlertModal] = useState<{
+    visible: boolean;
+    title: string;
+    message: string;
+  }>({
+    visible: false,
+    title: '',
+    message: '',
+  });
 
   const device = useCameraDevice('front');
   const { hasPermission: cameraPermission, requestPermission } = useCameraPermission();
@@ -81,7 +90,11 @@ const FaceRecognition = () => {
       const permission = await requestPermission();
       setHasPermission(permission);
       if (!permission) {
-        Alert.alert('Camera Permission', 'Camera permission is required for face detection');
+        setAlertModal({
+          visible: true,
+          title: 'Camera Permission',
+          message: 'Camera permission is required for face detection',
+        });
       }
     }
   }, [cameraPermission, requestPermission]);
@@ -221,7 +234,11 @@ const FaceRecognition = () => {
         ]),
       ]).start();
     } catch (error) {
-      Alert.alert('Error', (error as CameraCaptureError).message || 'Failed to capture photo');
+      setAlertModal({
+        visible: true,
+        title: 'Error',
+        message: (error as CameraCaptureError).message || 'Failed to capture photo',
+      });
     } finally {
       isProcessingRef.current = false;
       setIsProcessing(false);
@@ -319,7 +336,11 @@ const FaceRecognition = () => {
         dispatch(setEnrolledImage(base64String));
       }
     } catch (error) {
-      Alert.alert('Error', 'Failed to save the face image');
+      setAlertModal({
+        visible: true,
+        title: 'Error',
+        message: 'Failed to save the face image',
+      });
       return;
     }
 
@@ -333,6 +354,14 @@ const FaceRecognition = () => {
       navigation.goBack();
     });
   }, [capturedImage, dispatch, dialogScaleAnim, dialogOpacityAnim, successPulseAnim, navigation]);
+
+  const handleAlertModalClose = useCallback(() => {
+    setAlertModal({
+      visible: false,
+      title: '',
+      message: '',
+    });
+  }, []);
 
   useEffect(() => {
     checkPermissions();
@@ -492,6 +521,13 @@ const FaceRecognition = () => {
         existingEnrolledImage={existingEnrolledImage}
         onUseExisting={handleUseExistingImage}
         onReplace={handleReplaceImage}
+      />
+
+      <CommonAlertModal
+        visible={alertModal.visible}
+        title={alertModal.title}
+        message={alertModal.message}
+        onClose={handleAlertModalClose}
       />
     </View>
   );

@@ -6,7 +6,6 @@ import {
   Animated,
   Dimensions,
   SafeAreaView,
-  Alert,
   ActivityIndicator,
 } from 'react-native'
 import React, { useCallback, useState, memo } from 'react'
@@ -16,12 +15,14 @@ import { RootState } from '../redux/store'
 import { clearEnrolledImage } from '../redux/faceEnrollmentSlice'
 import LinearGradient from 'react-native-linear-gradient'
 import { colors } from '../common/colors'
+import { API_BASE_URL } from '../common/api'
 import BiometricCard from '../components/BiometricCard'
 import ReplaceImageModal from '../components/ReplaceImageModal'
 import EnrollmentRequiredModal from '../components/EnrollmentRequiredModal'
 import AnimatedBubble from '../components/AnimatedBubble'
 import { useEnrollmentAnimations } from '../hooks/useEnrollmentAnimations'
 import ApiResponseDialog from '../components/ApiResponseDialog'
+import CommonAlertModal from '../components/CommonAlertModal'
 
 const { height } = Dimensions.get('window')
 
@@ -143,6 +144,15 @@ const FaceAndFingerEnrollmentScreen = ({
     type: 'success',
     message: '',
   })
+  const [alertModal, setAlertModal] = useState<{
+    visible: boolean
+    title: string
+    message: string
+  }>({
+    visible: false,
+    title: '',
+    message: '',
+  })
 
   const animations = useEnrollmentAnimations()
 
@@ -213,7 +223,11 @@ const FaceAndFingerEnrollmentScreen = ({
     }
 
     if (!scanData) {
-      Alert.alert('Error', 'No scan data found. Please complete document scanning first.')
+      setAlertModal({
+        visible: true,
+        title: 'Error',
+        message: 'No scan data found. Please complete document scanning first.',
+      })
       return
     }
 
@@ -256,9 +270,7 @@ const FaceAndFingerEnrollmentScreen = ({
         scanned_json: scannedJsonObject,
       }
 
-      const API_URL = 'http://10.65.21.124:8010/api/v1/users/'
-
-      const response = await fetch(API_URL, {
+      const response = await fetch(`${API_BASE_URL}/users/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -277,9 +289,7 @@ const FaceAndFingerEnrollmentScreen = ({
             registration_id: scanData.Registration_Number,
           }
 
-          const templateApiUrl = 'http://10.65.21.124:8010/api/v1/template/enroll'
-
-          const templateResponse = await fetch(templateApiUrl, {
+          const templateResponse = await fetch(`${API_BASE_URL}/template/enroll`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -364,6 +374,14 @@ const FaceAndFingerEnrollmentScreen = ({
     }
   }, [apiResponse.type, onProceedToNext])
 
+  const handleAlertModalClose = useCallback(() => {
+    setAlertModal({
+      visible: false,
+      title: '',
+      message: '',
+    })
+  }, [])
+
   const Content = memo(() => (
     <>
       <LinearGradient
@@ -430,6 +448,12 @@ const FaceAndFingerEnrollmentScreen = ({
           message={apiResponse.message}
           onClose={handleApiResponseClose}
         />
+        <CommonAlertModal
+          visible={alertModal.visible}
+          title={alertModal.title}
+          message={alertModal.message}
+          onClose={handleAlertModalClose}
+        />
       </View>
     )
   }
@@ -452,6 +476,12 @@ const FaceAndFingerEnrollmentScreen = ({
         type={apiResponse.type}
         message={apiResponse.message}
         onClose={handleApiResponseClose}
+      />
+      <CommonAlertModal
+        visible={alertModal.visible}
+        title={alertModal.title}
+        message={alertModal.message}
+        onClose={handleAlertModalClose}
       />
     </SafeAreaView>
   )
