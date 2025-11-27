@@ -211,7 +211,7 @@ const FaceAndFingerEnrollmentScreen = ({
       if (onFingerPress) {
         onFingerPress()
       } else {
-        navigation?.navigate('FingerprintScanScreen' as never)
+        navigation?.navigate('FingerCapture' as never)
       }
     })
   }, [animations.fingerScaleAnim, onFingerPress, navigation])

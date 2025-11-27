@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+<!--    <color name="background_color">#6200EE</color>-->
+
+    <color name="colorPrimary">#FF6200EE</color>
+
+    <color name="bounding_boxes_border_color">#aa89CFF0</color>
+    <color name="bounding_boxes_fill_color">#3000FF00</color>
+
+    <color name="border_color_error">#FFFF2020</color>
+    <color name="border_color_info">#FFDDDD00</color>
+    <color name="border_color_pass">#FF00FF00</color>
+
+    <color name="airsnapfinger_overlay_color">#4D5F717D</color>
+
+<!--    <color name="status_text_background_color_error">#4DB10E1E</color>-->
+<!--    <color name="status_text_background_color_info">#4D2b8cc4</color>-->
+<!--    <color name="status_text_background_color_pass">#4D00823B</color>-->
+
+
+<!--    <color name="status_text_color_error">#ffffff</color>-->
+<!--    <color name="status_text_color_info">#ffffff</color>-->
+<!--    <color name="status_text_color_pass">#ffffff</color>-->
+
+
+    <!--    <color name="overlay_color">#FFF</color>-->
+
+<!--    <color name="header_background">#fff</color>-->
+
+
+
+</resources>

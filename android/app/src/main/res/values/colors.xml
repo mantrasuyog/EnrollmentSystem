@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="colorPrimary">#FF6200EE</color>
+    <color name="colorPrimaryDark">#FF3700B3</color>
+    <color name="colorAccent">#FF03DAC5</color>
+
+    <!-- Tech5 Finger Capture Colors -->
+    <color name="bounding_boxes_border_color">#aa89CFF0</color>
+    <color name="bounding_boxes_fill_color">#3000FF00</color>
+
+    <color name="border_color_error">#FFFF2020</color>
+    <color name="border_color_info">#FFDDDD00</color>
+    <color name="border_color_pass">#FF00FF00</color>
+
+    <color name="airsnapfinger_overlay_color">#4D5F717D</color>
+</resources>

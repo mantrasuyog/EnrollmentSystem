@@ -1,3 +1,55 @@
 <resources>
     <string name="app_name">EnrollmentSystem</string>
+
+    <!-- Tech5 Finger Capture Strings -->
+    <string name="title">Finger capture</string>
+    <string name="title_left_hand">Left hand</string>
+    <string name="title_right_hand">Right hand</string>
+    <string name="title_left_thumb">Left thumb</string>
+    <string name="title_right_thumb">Right thumb</string>
+
+    <string name="label_init_sdk_failed">SDK initialization failed code(%1$d)</string>
+    <string name="label_progress">Processing...</string>
+    <string name="label_right">Right</string>
+    <string name="label_left">Left</string>
+    <string name="label_four_fingers">4 fingers</string>
+    <string name="label_finger">finger</string>
+    <string name="label_fingers">fingers</string>
+
+    <string name="label_left_slap_num_fingers">Left %1$d fingers</string>
+    <string name="label_right_slap_num_fingers">Right %1$d fingers</string>
+
+    <string name="label_thumbs">Thumbs</string>
+    <string name="label_left_thumb">Left thumb</string>
+    <string name="label_right_thumb">Right thumb</string>
+
+    <string name="label_left_index_n_middle_fingers">Left index and middle fingers</string>
+    <string name="label_right_index_n_middle_fingers">Right index and middle fingers</string>
+
+    <string name="label_left_ring_n_little_fingers">Left ring and little fingers</string>
+    <string name="label_right_ring_n_little_fingers">Right ring and little fingers</string>
+
+    <string name="label_right_index_finger">Right index finger</string>
+    <string name="label_right_middle_finger">Right middle finger</string>
+    <string name="label_right_ring_finger">Right ring finger</string>
+    <string name="label_right_little_finger">Right little finger</string>
+
+    <string name="label_left_index_finger">Left index finger</string>
+    <string name="label_left_middle_finger">Left middle finger</string>
+    <string name="label_left_ring_finger">Left ring finger</string>
+    <string name="label_left_little_finger">Left little finger</string>
+
+    <string name="label_too_few_fingers_detected">Too few fingers detected</string>
+    <string name="label_more_than_one_finger_detected">More than 1 finger detected</string>
+    <string name="label_more_than_n_fingers_detected">More than %1$d finger detected</string>
+
+    <string name="hold_vertically">Hold %s vertically</string>
+    <string name="hold_horizontally">Hold %s horizontally</string>
+
+    <string name="label_too_far">Please bring your hand closer</string>
+    <string name="label_too_close">Please move your hand further</string>
+    <string name="label_low_focus">Low focus. Try to move hand</string>
+    <string name="label_good_focus">Hold your hand steady</string>
+
+    <string name="label_frame_hand">Frame %s</string>
 </resources>

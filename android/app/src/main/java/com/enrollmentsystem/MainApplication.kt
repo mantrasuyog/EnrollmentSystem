@@ -8,6 +8,8 @@ import com.facebook.react.PackageList
 import com.facebook.react.defaults.DefaultReactNativeHost
 import com.facebook.react.soloader.OpenSourceMergedSoMapping
 import com.facebook.soloader.SoLoader
+import com.enrollmentsystem.tech5finger.Tech5FingerPackage
+import com.enrollmentsystem.tech5face.Tech5FacePackage
 
 class MainApplication : Application(), ReactApplication {
 
@@ -15,7 +17,10 @@ class MainApplication : Application(), ReactApplication {
     override fun getUseDeveloperSupport(): Boolean = BuildConfig.DEBUG
 
     override fun getPackages(): List<ReactPackage> {
-      return PackageList(this@MainApplication).packages
+      val packages = PackageList(this@MainApplication).packages.toMutableList()
+      packages.add(Tech5FingerPackage())
+      packages.add(Tech5FacePackage())
+      return packages
     }
 
     override fun getJSMainModuleName(): String = "index"

@@ -1,0 +1,2 @@
+configurations.maybeCreate("default")
+artifacts.add("default", file('airsnap-face-core-1.5.6.aar'))

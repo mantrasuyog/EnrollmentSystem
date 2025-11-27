@@ -6,15 +6,16 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Provider } from 'react-redux';
 
 import HomeScreen from './src/screens/HomeScreen';
-import SuccessScreen from './src/screens/SuccessScreen'; 
-import FaceRecongition from './src/screens/FaceRecongition'; 
+import SuccessScreen from './src/screens/SuccessScreen';
+import FaceRecongition from './src/screens/FaceRecongition';
 import FaceAndFingerEnrollmentScreen from './src/screens/FaceAndFingerEnrollmentScreen';
 import SplashScreen from './src/screens/SplashScreen';
 import DashboardScreen from './src/screens/DashboardScreen';
 import DocumentUploadScreen from './src/screens/DocumentUploadScreen';
+import FingerCaptureScreen from './src/screens/FingerCaptureScreen';
+import Tech5FaceCaptureScreen from './src/screens/Tech5FaceCaptureScreen';
 
-
-import type { RootStackParamList } from './src/screens/HomeScreen'; 
+import type { RootStackParamList } from './src/screens/HomeScreen';
 import { store } from './src/redux/store';
 
 
@@ -45,29 +46,37 @@ function App() {
               component={SuccessScreen}
               options={{ headerShown: false }}
             />
-            <Stack.Screen 
+            <Stack.Screen
               name="FaceAndFingerEnrollment"
               component={FaceAndFingerEnrollmentScreen}
               options={{ headerShown: false }}
             />
-             <Stack.Screen 
+            <Stack.Screen
               name="FaceRecongition"
               component={FaceRecongition}
               options={{ headerShown: false }}
             />
-
-             <Stack.Screen 
+            <Stack.Screen
               name="DashboardScreen"
               component={DashboardScreen}
               options={{ headerShown: false }}
             />
-
-            <Stack.Screen 
+            <Stack.Screen
               name="SplashScreen"
               component={SplashScreen}
               options={{ headerShown: false }}
             />
-
+            <Stack.Screen
+              name="FingerCapture"
+              component={FingerCaptureScreen}
+              options={{ headerShown: false }}
+            />
+            
+            <Stack.Screen
+              name="faceCapture"
+              component={Tech5FaceCaptureScreen}
+              options={{ headerShown: false }}
+            />
 
           </Stack.Navigator>
         </NavigationContainer>

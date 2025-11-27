@@ -1,0 +1,116 @@
+<resources>
+
+
+    <string name="title">Finger capture</string>
+    <string name="title_left_hand">Left hand</string>
+    <string name="title_right_hand">Right hand</string>
+    <string name="title_left_thumb">Left thumb</string>
+    <string name="title_right_thumb">Right thumb</string>
+
+
+    <string name="label_init_sdk_failed">SDK initialization failed code(%1$d)</string>
+    <string name="label_progress">Processing…</string>
+    <string name="label_right">Right</string>
+    <string name="label_left">Left</string>
+    <string name="label_four_fingers">4 fingers</string>
+    <string name="label_finger">finger</string>
+    <string name="label_fingers">fingers</string>
+
+    <!--
+        Left 4 fingers
+        or
+         Left 3 fingers
+         or
+          Left Hand 4 fingers -> <string name="label_left_slap_num_fingers">Left hand %1$d fingers</string>
+         or
+         4 fingers of left hand -> <string name="label_left_slap_num_fingers">%1$d fingers of left hand</string>
+    -->
+    <string name="label_left_slap_num_fingers">Left %1$d fingers</string>
+
+    <!--
+        Right 4 fingers
+        or
+         Right 3 fingers
+         or
+         Right Hand 4 fingers
+         or
+         4 fingers of right hand
+    -->
+    <string name="label_right_slap_num_fingers">Right %1$d fingers</string>
+
+
+    <string name="label_thumbs">Thumbs</string>
+    <!--    <string name="label_thumb">thumb</string>-->
+    <string name="label_left_thumb">Left thumb</string>
+    <string name="label_right_thumb">Right thumb</string>
+
+    <!--    <string name="label_index_n_middle_fingers">index and middle fingers</string>-->
+
+
+    <string name="label_left_index_n_middle_fingers">Left index and middle fingers</string>
+    <string name="label_right_index_n_middle_fingers">Right index and middle fingers</string>
+
+    <!--    <string name="label_ring_n_little_fingers">Left ring and little fingers</string>-->
+    <string name="label_left_ring_n_little_fingers">Left ring and little fingers</string>
+    <string name="label_right_ring_n_little_fingers">Right ring and little fingers</string>
+
+
+    <string name="label_right_index_finger">Right index finger</string>
+    <string name="label_right_middle_finger">Right middle finger</string>
+    <string name="label_right_ring_finger">Right ring finger</string>
+    <string name="label_right_little_finger">Right little finger</string>
+
+
+    <string name="label_left_index_finger">Left index finger</string>
+    <string name="label_left_middle_finger">Left middle finger</string>
+    <string name="label_left_ring_finger">Left ring finger</string>
+    <string name="label_left_little_finger">Left little finger</string>
+
+
+    <string name="label_too_few_fingers_detected">Too few fingers detected</string>
+
+    <!--    &lt;!&ndash; ex: More than 2 fingers , More than 1 finger ,-->
+    <!--     %1d -> expected finger count for specified position,-->
+    <!--      %2s -> finger(expected count 1) or fingers(expected count > 1)-->
+    <!--    &ndash;&gt;-->
+    <!--    <string name="label_too_many_fingers_detected">More than %1$d %2$s</string>-->
+
+    <string name="label_more_than_one_finger_detected">More than 1 finger detected</string>
+
+    <!--
+    More than 2 fingers detected
+    %1$d - expected finger count for specified position
+    -->
+    <string name="label_more_than_n_fingers_detected">More than %1$d finger detected</string>
+
+    <!--Hold Right 4 fingers vertically
+    or
+     Hold Left 4 fingers vertically
+      or
+      Hold Left Index vertically-->
+    <string name="hold_vertically">Hold %s vertically</string>
+
+
+    <!--Hold Right 4 fingers horizontally
+   or
+    Hold Left 4 fingers horizontally
+     or
+     Hold Left Index horizontally-->
+    <string name="hold_horizontally">Hold %s horizontally</string>
+
+
+    <string name="label_too_far">Please bring your hand closer</string>
+    <string name="label_too_close">Please move your hand further</string>
+    <string name="label_low_focus">Low focus. Try to move hand</string>
+    <string name="label_good_focus">Hold your hand steady</string>
+
+
+    <!--Frame Right 4 fingers
+   or
+    Frame Left 4 fingers
+     or
+     Frame Left Index finger-->
+    <string name="label_frame_hand">Frame %s</string>
+
+
+</resources>
