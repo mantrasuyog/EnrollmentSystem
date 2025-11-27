@@ -50,6 +50,8 @@ export const colors = {
   green2: '#059669',
   overlayBlack50: 'rgba(0, 0, 0, 0.5)',
   darkText: '#1F2937',
+  textDark: '#1F2937',
+  textGray: '#6B7280',
   midGray: '#6B7280',
   bgLight: '#F9FAFB',
   borderGray: '#E5E7EB',

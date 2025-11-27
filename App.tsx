@@ -14,6 +14,8 @@ import DashboardScreen from './src/screens/DashboardScreen';
 import DocumentUploadScreen from './src/screens/DocumentUploadScreen';
 import FingerCaptureScreen from './src/screens/FingerCaptureScreen';
 import Tech5FaceCaptureScreen from './src/screens/Tech5FaceCaptureScreen';
+import VerificationScreen from './src/screens/VerificationScreen';
+import VerificationResultScreen from './src/screens/VerificationResultScreen';
 
 import type { RootStackParamList } from './src/screens/HomeScreen';
 import { store } from './src/redux/store';
@@ -75,6 +77,18 @@ function App() {
             <Stack.Screen
               name="faceCapture"
               component={Tech5FaceCaptureScreen}
+              options={{ headerShown: false }}
+            />
+
+            <Stack.Screen
+              name="VerificationScreen"
+              component={VerificationScreen}
+              options={{ headerShown: false }}
+            />
+
+            <Stack.Screen
+              name="VerificationResult"
+              component={VerificationResultScreen}
               options={{ headerShown: false }}
             />
 

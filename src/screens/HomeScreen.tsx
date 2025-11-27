@@ -26,6 +26,8 @@ export type RootStackParamList = {
   Home: undefined;
   DocumentUpload: undefined;
   Verification: undefined;
+  VerificationScreen: undefined;
+  VerificationResult: { registrationNumber: string };
   Success: undefined;
   FaceAndFingerEnrollment: undefined;
   FaceRecongition: undefined;
@@ -151,8 +153,8 @@ const HomeScreen = ({ navigation }: Props) => {
   }, [handlePressOut, scaleAnim2]);
 
   const handleVerificationPress = useCallback(() => {
-
-  }, []);
+    (navigation as any).navigate('VerificationScreen');
+  }, [navigation]);
 
   const handleEnrollNew = useCallback(() => {
     dispatch(clearScanData());
@@ -189,14 +191,14 @@ const HomeScreen = ({ navigation }: Props) => {
           }}
         />
 
-        <Animated.View style={{ opacity: fadeAnim }}>
+        {/* <Animated.View style={{ opacity: fadeAnim }}>
           <Text style={[styles.optionsTitle, isDarkMode && styles.textDark]}>
             Choose an option to continue
           </Text>
-        </Animated.View>
+        </Animated.View> */}
 
         <View style={styles.cardsContainer}>
-          <HomeActionCard
+          {/* <HomeActionCard
             title="New Enrollment"
             description="Register your fingerprint, face, or iris data securely in our encrypted database for seamless authentication"
             icon="✍️"
@@ -208,7 +210,7 @@ const HomeScreen = ({ navigation }: Props) => {
             onPress={handleEnrollmentPress}
             onPressIn={handlePressInCard1}
             onPressOut={handlePressOutCard1}
-          />
+          /> */}
 
           <HomeActionCard
             title="Identity Verification"
