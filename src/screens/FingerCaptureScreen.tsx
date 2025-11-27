@@ -66,6 +66,7 @@ const FingerCaptureScreen: React.FC<FingerCaptureScreenProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [selectedMode, setSelectedMode] = useState<CaptureMode>('left_slap');
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [showResetModal, setShowResetModal] = useState(false);
 
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -74,6 +75,7 @@ const FingerCaptureScreen: React.FC<FingerCaptureScreenProps> = ({
   const progressAnim = useRef(new Animated.Value(0)).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const modalAnim = useRef(new Animated.Value(0)).current;
+  const resetModalAnim = useRef(new Animated.Value(0)).current;
 
   const captureConfig = route?.params?.config || {};
   const onCaptureComplete = route?.params?.onCaptureComplete;
@@ -151,6 +153,20 @@ const FingerCaptureScreen: React.FC<FingerCaptureScreenProps> = ({
       modalAnim.setValue(0);
     }
   }, [showConfirmModal]);
+
+  // Reset modal animation
+  useEffect(() => {
+    if (showResetModal) {
+      Animated.spring(resetModalAnim, {
+        toValue: 1,
+        friction: 8,
+        tension: 40,
+        useNativeDriver: true,
+      }).start();
+    } else {
+      resetModalAnim.setValue(0);
+    }
+  }, [showResetModal]);
 
   const handleCapture = useCallback(async () => {
     if (Platform.OS !== 'android') {
@@ -259,19 +275,8 @@ const FingerCaptureScreen: React.FC<FingerCaptureScreenProps> = ({
   }, [fingerEnrollment, onCaptureComplete, navigation]);
 
   const handleReset = useCallback(() => {
-    Alert.alert(
-      'Reset All Captures',
-      'Are you sure you want to clear all captured fingerprints?',
-      [
-        {text: 'Cancel', style: 'cancel'},
-        {
-          text: 'Reset',
-          style: 'destructive',
-          onPress: () => dispatch(clearFingerEnrollment()),
-        },
-      ],
-    );
-  }, [dispatch]);
+    setShowResetModal(true);
+  }, []);
 
   const getModeLabel = (mode: CaptureMode): string => {
     switch (mode) {
@@ -1048,6 +1053,7 @@ const styles = StyleSheet.create({
   fingersGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    justifyContent: 'center',
     marginHorizontal: -6,
   },
   fingerCard: {

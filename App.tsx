@@ -75,7 +75,7 @@ function App() {
             />
             
             <Stack.Screen
-              name="faceCapture"
+              name="FaceCapture"
               component={Tech5FaceCaptureScreen}
               options={{ headerShown: false }}
             />

@@ -160,7 +160,7 @@ const FaceAndFingerEnrollmentScreen = ({
     if (onFacePress) {
       onFacePress()
     } else {
-      navigation?.navigate('FaceRecongition' as never)
+      navigation?.navigate('FaceCapture' as never)
     }
   }, [onFacePress, navigation])
 

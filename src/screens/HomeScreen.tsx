@@ -34,7 +34,7 @@ export type RootStackParamList = {
   DashboardScreen: undefined;
   SplashScreen: undefined;
   FingerCapture: undefined;
-  faceCapture: undefined;
+  FaceCapture: undefined;
 };
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Home'>;
