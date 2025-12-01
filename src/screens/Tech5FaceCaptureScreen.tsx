@@ -20,6 +20,7 @@ import Tech5Face, {
   CaptureConfig,
   FaceData,
 } from '../modules/Tech5Face';
+import { apiService } from '../services/api.service';
 
 interface Tech5FaceCaptureScreenProps {
   navigation?: any;
@@ -27,6 +28,7 @@ interface Tech5FaceCaptureScreenProps {
     params?: {
       config?: CaptureConfig;
       onCaptureComplete?: (result: CaptureResult) => void;
+      registrationNumber?: string;
     };
   };
 }
@@ -57,6 +59,7 @@ const Tech5FaceCaptureScreen: React.FC<Tech5FaceCaptureScreenProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [selectedMode, setSelectedMode] = useState<CaptureMode>('standard');
   const [showDetailModal, setShowDetailModal] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
 
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -68,6 +71,7 @@ const Tech5FaceCaptureScreen: React.FC<Tech5FaceCaptureScreenProps> = ({
 
   const captureConfig = route?.params?.config || {};
   const onCaptureComplete = route?.params?.onCaptureComplete;
+  const registrationNumber = route?.params?.registrationNumber || '';
 
   // Entry animation
   useEffect(() => {
@@ -231,8 +235,51 @@ const Tech5FaceCaptureScreen: React.FC<Tech5FaceCaptureScreenProps> = ({
         return '📷';
     }
   };
+  const onContinueVerification = useCallback(async () => {
+    if (!captureResult?.imageBase64 || !registrationNumber) {
+      Alert.alert('Error', 'Missing face capture or registration number');
+      return;
+    }
 
-  const renderModeButton = (mode: CaptureMode) => {
+    setIsVerifying(true);
+    setError(null);
+
+    try {
+      const payload = {
+        face: captureResult.imageBase64,
+        registration_id: registrationNumber,
+      };
+
+      console.log('Sending verification payload:', {
+        ...payload,
+        face: payload.face.substring(0, 100) + '...',
+      });
+      const response = await apiService.post(
+        'http://10.65.21.96:8000/api/v1/verification/verify',
+        payload,
+      );
+
+      console.log('Verification response:', response.status, response.data);
+
+      if (response && response.status >= 200 && response.status < 300) {
+        Alert.alert('Success', 'Face verification completed successfully!');
+        // Navigate to success or next screen
+        navigation?.navigate('VerificationResult', { registrationNumber });
+      }
+    } catch (err: any) {
+      let message = 'An error occurred during verification';
+      if (err && err.response) {
+        message = err.response.data?.message || JSON.stringify(err.response.data);
+      } else if (err && err.message) {
+        message = err.message;
+      }
+      console.log('Verification error:', message);
+      setError(message);
+      Alert.alert('Verification Failed', message);
+    } finally {
+      setIsVerifying(false);
+    }
+  }, [captureResult?.imageBase64, registrationNumber, navigation]);  const renderModeButton = (mode: CaptureMode) => {
     const isSelected = selectedMode === mode;
 
     return (
@@ -634,11 +681,21 @@ const Tech5FaceCaptureScreen: React.FC<Tech5FaceCaptureScreenProps> = ({
         {/* Continue Button */}
         {captureResult && navigation && (
           <TouchableOpacity
-            style={styles.continueButton}
-            onPress={() => navigation.goBack()}
+            style={[
+              styles.continueButton,
+              isVerifying && styles.continueButtonDisabled,
+            ]}
+            onPress={onContinueVerification}
+            disabled={isVerifying}
             activeOpacity={0.85}>
-            <Text style={styles.continueButtonText}>Continue</Text>
-            <Text style={styles.continueButtonIcon}>→</Text>
+            {isVerifying ? (
+              <ActivityIndicator size="small" color="white" />
+            ) : (
+              <>
+                <Text style={styles.continueButtonText}>Continue</Text>
+                <Text style={styles.continueButtonIcon}>→</Text>
+              </>
+            )}
           </TouchableOpacity>
         )}
       </ScrollView>
@@ -1023,6 +1080,11 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 4,
+  },
+  continueButtonDisabled: {
+    backgroundColor: '#94A3B8',
+    shadowOpacity: 0,
+    elevation: 0,
   },
   continueButtonText: {
     color: '#FFFFFF',

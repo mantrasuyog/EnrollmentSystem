@@ -15,11 +15,13 @@ import {
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import LinearGradient from 'react-native-linear-gradient';
 import { colors } from '../common/colors';
+import { apiService } from '../services/api.service';
 
 type RootStackParamList = {
   Home: undefined;
   Verification: undefined;
   VerificationResult: { registrationNumber: string };
+  FaceCapture: { registrationNumber?: string };
 };
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Verification'>;
@@ -66,25 +68,75 @@ const VerificationScreen: React.FC<Props> = ({ navigation }) => {
   }, [registrationNumber]);
 
   const handleStartScan = useCallback(async () => {
-    if (!validateRegistrationNumber()) {
+    // Validate registration number
+    if (!registrationNumber.trim()) {
+      setError('Please enter registration number');
       return;
     }
 
+    // if (!/^\d{6}$/.test(registrationNumber)) {
+    //   setError('Registration number must be exactly 6 digits');
+    //   return;
+    // }
+
+    setError('');
     setIsLoading(true);
     try {
-      // Simulate verification delay
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      console.log('registration number>>', registrationNumber);
+
+      // Call checkUser and wait for the result
+      const exists = await checkUser(registrationNumber);
+
+      if (exists) {
+        // Success -> navigate to FaceCapture and pass registration number
+        navigation.navigate('FaceCapture', { registrationNumber } as never);
+      } else {
+        setError('User not found');
+      }
+    } catch (err: any) {
+      console.log('error>',err);
       
-      // Navigate to verification result screen with registration number
-      navigation.navigate('VerificationResult' as never, {
-        registrationNumber,
-      } as never);
-    } catch (err) {
-      setError('An error occurred. Please try again.');
+      let message = 'An error occurred. Please try again.';
+      if (err && err.response && err.response.data) {
+        // Prefer server-provided message
+        message = err.response.data.message || JSON.stringify(err.response.data);
+      } else if (err && err.message) {
+        message = err.message;
+      }
+      setError(message);
     } finally {
       setIsLoading(false);
     }
-  }, [registrationNumber, validateRegistrationNumber, navigation]);
+  }, [registrationNumber, navigation]);
+const checkUser = async (registrationNumber: string): Promise<boolean> => {
+  console.log('registration number>>.',registrationNumber);
+  
+  try {
+    const url = `http://10.65.21.96:8000/api/v1/users/${registrationNumber}`;
+    console.log('calling url>>', url);
+
+    // Use axios via apiService for consistent interceptors and error handling
+    const response = await apiService.get(url);
+    console.log('api response status:', response.status, 'data:', response.data);
+
+    // If 2xx -> assume user exists
+    return response && response.status === 200;
+  } catch (error: any) {
+    // axios errors: error.response contains server response
+    if (error && error.response) {
+      console.log('API response error:', error.response.status, error.response.data);
+      if (error.response.status === 404) return false;
+      // forward server message as error for calling code to show
+      const msg = error.response.data?.message || JSON.stringify(error.response.data);
+      setError(msg);
+      return false;
+    }
+
+    console.log('API call error:', error?.message || error);
+    setError('Unable to contact verification service');
+    return false;
+  }
+};
 
   const handleGoBack = useCallback(() => {
     navigation.goBack();
@@ -145,13 +197,11 @@ const VerificationScreen: React.FC<Props> = ({ navigation }) => {
             <View style={[styles.inputContainer, error && styles.inputError]}>
               <TextInput
                 style={styles.input}
-                placeholder="Enter 6-digit number"
+                placeholder="Enter Registration number"
                 placeholderTextColor={colors.textGray}
                 value={registrationNumber}
                 onChangeText={setRegistrationNumber}
                 editable={!isLoading}
-                maxLength={6}
-                keyboardType="numeric"
               />
               {registrationNumber.length > 0 && !isLoading && (
                 <TouchableOpacity onPress={handleClear} style={styles.clearButton}>
@@ -172,9 +222,12 @@ const VerificationScreen: React.FC<Props> = ({ navigation }) => {
             style={styles.scanButtonGradient}
           >
             <TouchableOpacity
-              style={styles.scanButton}
+              style={[
+                styles.scanButton,
+                (!registrationNumber.trim() || isLoading) && styles.scanButtonDisabled
+              ]}
               onPress={handleStartScan}
-              disabled={isLoading || !registrationNumber.trim()}
+              disabled={isLoading}
               activeOpacity={0.8}
             >
               {isLoading ? (
@@ -331,6 +384,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 16,
     gap: 8,
+  },
+  scanButtonDisabled: {
+    opacity: 0.5,
   },
   scanButtonIcon: {
     fontSize: 20,
