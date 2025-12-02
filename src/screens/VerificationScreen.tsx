@@ -21,7 +21,14 @@ type RootStackParamList = {
   Home: undefined;
   Verification: undefined;
   VerificationResult: { registrationNumber: string };
-  FaceCapture: { registrationNumber?: string };
+  FaceCapture: { registrationNumber?: string ;
+    userDetails: {
+      name: string;
+      registrationId: string;
+      centerCode: string;
+      scannedJson?: Record<string, any>;
+    };
+  };
 };
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Verification'>;
@@ -74,24 +81,36 @@ const VerificationScreen: React.FC<Props> = ({ navigation }) => {
       return;
     }
 
-    // if (!/^\d{6}$/.test(registrationNumber)) {
-    //   setError('Registration number must be exactly 6 digits');
-    //   return;
-    // }
-
     setError('');
     setIsLoading(true);
     try {
       console.log('registration number>>', registrationNumber);
+      const { exists, userData } = await checkUser(registrationNumber);
 
-      // Call checkUser and wait for the result
-      const exists = await checkUser(registrationNumber);
+      if (exists && userData) {
+        // Extract only the required fields
+        const { 
+          name, 
+          registration_id, 
+          center_code,
+          scanned_json 
+        } = userData;
 
-      if (exists) {
-        // Success -> navigate to FaceCapture and pass registration number
-        navigation.navigate('FaceCapture', { registrationNumber } as never);
+        const userDetails = {
+          name,
+          registrationId: registration_id,
+          centerCode: center_code,
+          scannedJson: scanned_json // Pass the entire scanned_json object
+        };
+
+        // Navigate with user details including full scanned_json
+        navigation.navigate('FaceCapture', { 
+          registrationNumber,
+          userDetails 
+        });
       } else {
         setError('User not found');
+        // navigation.navigate('FaceCapture');
       }
     } catch (err: any) {
       console.log('error>',err);
@@ -108,8 +127,8 @@ const VerificationScreen: React.FC<Props> = ({ navigation }) => {
       setIsLoading(false);
     }
   }, [registrationNumber, navigation]);
-const checkUser = async (registrationNumber: string): Promise<boolean> => {
-  console.log('registration number>>.',registrationNumber);
+const checkUser = async (registrationNumber: string): Promise<{exists: boolean, userData?: any}> => {
+  console.log('registration number>>.', registrationNumber);
   
   try {
     const url = `http://10.65.21.96:8000/api/v1/users/${registrationNumber}`;
@@ -117,24 +136,32 @@ const checkUser = async (registrationNumber: string): Promise<boolean> => {
 
     // Use axios via apiService for consistent interceptors and error handling
     const response = await apiService.get(url);
-    console.log('api response status:', response.status, 'data:', response.data);
+    console.log('api response status:', response.status, 'name>>', response.data.name);
 
-    // If 2xx -> assume user exists
-    return response && response.status === 200;
+    return {
+      exists: response && response.status === 200,
+      userData: response.data
+    };
   } catch (error: any) {
     // axios errors: error.response contains server response
     if (error && error.response) {
       console.log('API response error:', error.response.status, error.response.data);
-      if (error.response.status === 404) return false;
+      if (error.response.status === 404) return {
+      exists: false
+    };
       // forward server message as error for calling code to show
       const msg = error.response.data?.message || JSON.stringify(error.response.data);
       setError(msg);
-      return false;
+      return {
+      exists: false
+    };
     }
 
     console.log('API call error:', error?.message || error);
     setError('Unable to contact verification service');
-    return false;
+    return {
+      exists: false
+    };
   }
 };
 
@@ -163,13 +190,23 @@ const checkUser = async (registrationNumber: string): Promise<boolean> => {
             },
           ]}
         >
-          <View style={styles.header}>
+          {/* <View style={styles.header}>
             <TouchableOpacity onPress={handleGoBack} style={styles.backButton}>
               <Text style={styles.backButtonText}>‹</Text>
             </TouchableOpacity>
             <Text style={styles.headerTitle}>Identity Verification</Text>
             <View style={styles.placeholderButton} />
-          </View>
+          </View> */}
+          <View style={styles.mainHeader}>
+      <TouchableOpacity 
+        onPress={() => navigation.goBack()}
+        style={styles.headerBackButton}
+      >
+        <Text style={styles.headerBackText}>←</Text>
+      </TouchableOpacity>
+      <Text style={styles.txtHeaderTitle}>Identity Verification</Text>
+      <View style={styles.headerRight} />
+    </View>
 
           <View style={styles.iconContainer}>
             <Text style={styles.headerIcon}>🛡️</Text>
@@ -210,9 +247,9 @@ const checkUser = async (registrationNumber: string): Promise<boolean> => {
               )}
             </View>
             {error && <Text style={styles.errorText}>{error}</Text>}
-            <Text style={styles.helperText}>
+            {/* <Text style={styles.helperText}>
               You can find this number in your enrollment confirmation email
-            </Text>
+            </Text> */}
           </View>
 
           <LinearGradient
@@ -235,7 +272,7 @@ const checkUser = async (registrationNumber: string): Promise<boolean> => {
               ) : (
                 <>
                   <Text style={styles.scanButtonIcon}>📸</Text>
-                  <Text style={styles.scanButtonText}>Start Scan</Text>
+                  <Text style={styles.scanButtonText}>Start Face Verification</Text>
                 </>
               )}
             </TouchableOpacity>
@@ -263,6 +300,42 @@ const checkUser = async (registrationNumber: string): Promise<boolean> => {
 };
 
 const styles = StyleSheet.create({
+  mainHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    height: 60, // Fixed height for consistent alignment
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+    marginTop:10
+  },
+  headerBackButton: {
+    width: 44,
+    height: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: -8, // Pull the button slightly to the left
+  },
+  headerBackText: {
+    fontSize: 32,
+    color: '#000',
+    lineHeight: 38, // Adjust line height to match text size
+    marginTop: -2, // Fine-tune vertical alignment
+  },
+  txtHeaderTitle: {
+    fontSize: 18,
+    fontFamily: 'Sen-SemiBold',
+    color: '#000',
+    flex: 1,
+    textAlign: 'center',
+    // marginRight: 44, // Match the width of the back button
+    lineHeight: 20, // Ensure consistent line height
+    paddingTop: 2, // Fine-tune vertical alignment
+  },
+headerRight: {
+  width: 37, // Same as back button for balance
+},
   safeArea: {
     flex: 1,
     backgroundColor: colors.bgLight,

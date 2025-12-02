@@ -29,8 +29,15 @@ interface Tech5FaceCaptureScreenProps {
       config?: CaptureConfig;
       onCaptureComplete?: (result: CaptureResult) => void;
       registrationNumber?: string;
+      userDetails?: UserDetails;
     };
   };
+}
+interface UserDetails {
+  name: string;
+  registrationId: string;
+  centerCode: string;
+  scannedJson?: Record<string, any>;
 }
 
 type CaptureMode = 'standard' | 'icao' | 'liveness' | 'quick';
@@ -49,6 +56,16 @@ const Tech5FaceCaptureScreen: React.FC<Tech5FaceCaptureScreenProps> = ({
   navigation,
   route,
 }) => {
+  const renderHeader = () => (
+    <View style={styles.mainHeader}>
+      <TouchableOpacity 
+        onPress={() => navigation.goBack()}
+        style={styles.backButton}
+      >
+        <Text style={styles.backButtonText}>←</Text>
+      </TouchableOpacity>
+    </View>
+  );
   // Select the latest scan from Redux
   const latestScan = useSelector((state: any) => {
     const scans = state.scan?.scans || [];
@@ -60,6 +77,8 @@ const Tech5FaceCaptureScreen: React.FC<Tech5FaceCaptureScreenProps> = ({
   const [selectedMode, setSelectedMode] = useState<CaptureMode>('standard');
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
+  // Add user details state
+  const [userDetails, setUserDetails] = useState<UserDetails | null>(null);
 
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -138,6 +157,13 @@ const Tech5FaceCaptureScreen: React.FC<Tech5FaceCaptureScreenProps> = ({
       modalSlideAnim.setValue(100);
     }
   }, [showDetailModal]);
+
+   // Add this effect to get user details from route params
+  useEffect(() => {
+    if (route?.params?.userDetails) {
+      setUserDetails(route.params.userDetails);
+    }
+  }, [route?.params?.userDetails]);
 
   const handleCapture = useCallback(async () => {
     if (Platform.OS !== 'android') {
@@ -581,12 +607,82 @@ const Tech5FaceCaptureScreen: React.FC<Tech5FaceCaptureScreenProps> = ({
       </Animated.View>
     );
   };
+  // Add this function before the return statement
+const renderUserDetails = () => {
+  if (!userDetails) return null;
+  const { name, registrationId, centerCode, scannedJson } = userDetails;
+
+  return (
+    <Animated.View 
+      style={[
+        styles.detailsContainer,
+        {
+          opacity: fadeAnim,
+          transform: [{ translateY: slideAnim }],
+        },
+      ]}
+    >
+      <Text style={styles.detailsTitle}>Identity Verification Details</Text>
+      
+      <View style={styles.detailRow}>
+        <Text style={styles.detailLabel}>Name:</Text>
+        <Text style={styles.detailValue}>{name || 'N/A'}</Text>
+      </View>
+      
+      <View style={styles.detailRow}>
+        <Text style={styles.detailLabel}>Registration ID:</Text>
+        <Text style={styles.detailValue}>{registrationId}</Text>
+      </View>
+
+      {userDetails.centerCode && <View style={styles.detailRow}>
+        <Text style={styles.detailLabel}>Center Code:</Text>
+        <Text style={styles.detailValue}>{centerCode}</Text>
+      </View>}
+      {scannedJson &&
+        Object.entries(scannedJson).map(([key, value]) => (
+          <View key={key} style={styles.detailRow}>
+            <Text style={styles.detailLabel}>
+              {key.charAt(0).toUpperCase() + key.slice(1)}:
+            </Text>
+            <Text style={styles.detailValue}>{String(value) || "N/A"}</Text>
+          </View>
+        ))}
+      
+      {/* {userDetails.documentNumber && (
+        <View style={styles.detailRow}>
+          <Text style={styles.detailLabel}>Document Number:</Text>
+          <Text style={styles.detailValue}>{userDetails.documentNumber}</Text>
+        </View>
+      )}
+      
+      {userDetails.dob && (
+        <View style={styles.detailRow}>
+          <Text style={styles.detailLabel}>Date of Birth:</Text>
+          <Text style={styles.detailValue}>{userDetails.dob}</Text>
+        </View>
+      )}
+
+      {userDetails.documentType && (
+        <View style={styles.detailRow}>
+          <Text style={styles.detailLabel}>Document Type:</Text>
+          <Text style={styles.detailValue}>
+            {userDetails.documentType.charAt(0).toUpperCase() + 
+             userDetails.documentType.slice(1)}
+          </Text>
+        </View>
+      )} */}
+    </Animated.View>
+  );
+};
 
   return (
     <SafeAreaView style={styles.container}>
+      {renderHeader()}
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}>
+           {/* 1. USER DETAILS */}
+    {renderUserDetails()}
         {/* Header */}
         <Animated.View
           style={[
@@ -707,6 +803,37 @@ const Tech5FaceCaptureScreen: React.FC<Tech5FaceCaptureScreenProps> = ({
 };
 
 const styles = StyleSheet.create({
+  mainHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 2,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+    minHeight: 50,
+  },
+  backButton: {
+    width: 37,
+    height: 37,
+    justifyContent: 'center',
+    alignItems: 'flex-start',
+    paddingLeft: 8,
+  },
+  backButtonText: {
+    fontSize: 38,
+    color: '#000',
+    lineHeight: 32,
+    // marginTop: -4,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontFamily: FONTS.semiBold,
+    color: '#000',
+  },
+  headerRight: {
+    width: 40, // Same as back button for balance
+  },
   container: {
     flex: 1,
     backgroundColor: '#F8FAFC',
@@ -1309,6 +1436,45 @@ const styles = StyleSheet.create({
     height: 160,
     borderRadius: 12,
     backgroundColor: '#E2E8F0',
+  },
+
+
+   detailsContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 20,
+    margin: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  detailsTitle: {
+    fontSize: 18,
+    fontFamily: 'Sen-Bold',
+    color: '#333',
+    marginBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+    paddingBottom: 8,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    marginBottom: 12,
+    alignItems: 'flex-start',
+  },
+  detailLabel: {
+    width: 140,
+    fontSize: 14,
+    fontFamily: 'Sen-SemiBold',
+    color: '#555',
+  },
+  detailValue: {
+    flex: 1,
+    fontSize: 14,
+    fontFamily: 'Sen-Regular',
+    color: '#333',
   },
 });
 
