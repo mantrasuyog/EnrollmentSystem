@@ -1,5 +1,6 @@
 import React, {useState, useCallback, useEffect, useRef} from 'react';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
+import { setEnrolledImage, clearEnrolledImage } from '../redux/faceEnrollmentSlice';
 import {
   View,
   Text,
@@ -47,6 +48,7 @@ const Tech5FaceCaptureScreen: React.FC<Tech5FaceCaptureScreenProps> = ({
   navigation,
   route,
 }) => {
+  const dispatch = useDispatch();
   // Select the latest scan from Redux
   const latestScan = useSelector((state: any) => {
     const scans = state.scan?.scans || [];
@@ -635,7 +637,13 @@ const Tech5FaceCaptureScreen: React.FC<Tech5FaceCaptureScreenProps> = ({
         {captureResult && navigation && (
           <TouchableOpacity
             style={styles.continueButton}
-            onPress={() => navigation.goBack()}
+            onPress={() => {
+              dispatch(clearEnrolledImage());
+              if (captureResult.imageBase64) {
+                dispatch(setEnrolledImage(captureResult.imageBase64));
+              }
+              navigation.goBack();
+            }}
             activeOpacity={0.85}>
             <Text style={styles.continueButtonText}>Continue</Text>
             <Text style={styles.continueButtonIcon}>→</Text>

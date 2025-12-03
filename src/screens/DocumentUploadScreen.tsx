@@ -12,6 +12,7 @@ import {
   Image,
   ScrollView,
   Easing,
+  ActivityIndicator,
 } from 'react-native';
 import {NavigationProp} from '@react-navigation/native';
 import DocumentReader, {
@@ -67,6 +68,7 @@ const DocumentUploadScreen: React.FC<IProps> = ({
   scanData,
 }) => {
   const [fullName, setFullName] = useState<string>('Ready');
+  const [isSDKInitializing, setIsSDKInitializing] = useState<boolean>(true);
   const [portrait, setPortrait] = useState(
     require('../assets/images/portrait.png'),
   );
@@ -218,6 +220,7 @@ const DocumentUploadScreen: React.FC<IProps> = ({
           );
 
           setFullName('Ready');
+          setIsSDKInitializing(false);
           onInitialized();
         },
         () => {},
@@ -424,8 +427,13 @@ const DocumentUploadScreen: React.FC<IProps> = ({
       results.textFieldValueByType(
         Enum.eVisualFieldType.FT_SURNAME_AND_GIVEN_NAMES,
         (value: string | undefined) => {
-          setFullName(value || 'Document Scanned');
-          ScanData.setName(value || '');
+          // Clean name - remove "name", "Name", "Name\n", "Name:" etc. from the value
+          let cleanedName = value || '';
+          if (cleanedName) {
+            cleanedName = cleanedName.replace(/name[\s:\n]*/gi, '').trim();
+          }
+          setFullName(cleanedName || 'Document Scanned');
+          ScanData.setName(cleanedName || '');
         },
         () => {},
       );
@@ -455,9 +463,14 @@ const DocumentUploadScreen: React.FC<IProps> = ({
       let fields: any[] = [];
       if (results.textResult && results.textResult.fields) {
         results.textResult.fields.forEach(f => {
+          let fieldValue = f.value;
+          // Clean name field - remove "name", "Name", "Name\n", "Name:" etc. from the value
+          if (fieldValue) {
+            fieldValue = fieldValue.replace(/name[\s:\n]*/gi, '').trim();
+          }
           fields.push({
             name: f.fieldName,
-            value: f.value,
+            value: fieldValue,
           });
         });
       }
@@ -1154,6 +1167,25 @@ const DocumentUploadScreen: React.FC<IProps> = ({
         message={alertModal.message}
         onClose={handleAlertModalClose}
       />
+
+      {/* Full-screen loader while SDK is initializing */}
+      <Modal
+        visible={isSDKInitializing}
+        transparent
+        animationType="fade"
+        statusBarTranslucent>
+        <View style={styles.sdkLoaderOverlay}>
+          <View style={styles.sdkLoaderContent}>
+            <View style={styles.sdkLoaderSpinner}>
+              <ActivityIndicator size="large" color="#4F46E5" />
+            </View>
+            <Text style={styles.sdkLoaderTitle}>Initializing</Text>
+            <Text style={styles.sdkLoaderSubtitle}>
+              Please wait while we set up the document scanner...
+            </Text>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -1699,6 +1731,38 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: 'Sen-Regular',
     color: '#2D3748',
+  },
+  sdkLoaderOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.97)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  sdkLoaderContent: {
+    alignItems: 'center',
+    paddingHorizontal: 40,
+  },
+  sdkLoaderSpinner: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#F0F0FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  sdkLoaderTitle: {
+    fontSize: 22,
+    fontFamily: 'Sen-Bold',
+    color: '#2D3748',
+    marginBottom: 8,
+  },
+  sdkLoaderSubtitle: {
+    fontSize: 14,
+    fontFamily: 'Sen-Regular',
+    color: '#718096',
+    textAlign: 'center',
+    lineHeight: 20,
   },
 });
 

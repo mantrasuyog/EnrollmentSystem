@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useCallback, useMemo } from "react";
+import React, { useEffect, useRef, useCallback, useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -12,13 +12,17 @@ import {
   StyleSheet,
   Dimensions,
   Image,
+  ActivityIndicator,
+  Alert,
 } from "react-native";
 import LinearGradient from "react-native-linear-gradient";
+import { generateAndSharePDF } from "../services/pdfReport.service";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 
 import { useSelector } from "react-redux";
 import { RootState } from "../redux/store";
+import { selectFingerTemplates, FingerTemplates } from "../redux/fingerEnrollmentSlice";
 import SuccessCheckmark from "../components/SuccessCheckmark";
 import SuccessRegistrationCard from "../components/SuccessRegistrationCard";
 import SuccessEnrollmentDetailsCard from "../components/SuccessEnrollmentDetailsCard";
@@ -47,6 +51,7 @@ const SuccessScreen = () => {
   const documentPreviewOpacity = useRef(new Animated.Value(0)).current;
   const scans = useSelector((state: RootState) => state.scan.scans);
   const enrolledFaceImage = useSelector((state: RootState) => state.faceEnrollment.enrolledImageBase64);
+  const fingerTemplates = useSelector(selectFingerTemplates);
 
   const scannedData = useMemo(() => {
     if (!scans || !scans[0]) return null;
@@ -64,6 +69,7 @@ const SuccessScreen = () => {
   const [copied, setCopied] = React.useState(false);
   const [showModal, setShowModal] = React.useState(false);
   const [showDocumentPreview, setShowDocumentPreview] = React.useState(false);
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const [selectedDocument, setSelectedDocument] = React.useState<{
     type: string;
     title: string;
@@ -72,7 +78,7 @@ const SuccessScreen = () => {
 
   const registrationNumber = scans && scans[0]?.Registration_Number 
     ? scans[0].Registration_Number 
-    : "REG-A7X9K2";
+    : "N/A";
 
   const centerCode = scans && scans[0]?.Centre_Code 
     ? scans[0].Centre_Code 
@@ -210,6 +216,52 @@ const SuccessScreen = () => {
     });
   }, [documentPreviewOpacity]);
 
+  const handleDownloadReport = useCallback(() => {
+    if (isGeneratingPDF) return;
+
+    setIsGeneratingPDF(true);
+
+    setTimeout(async () => {
+      try {
+        let parsedScannedData: Array<{ name: string; value: string }> = [];
+        if (scannedData && Array.isArray(scannedData)) {
+          parsedScannedData = scannedData;
+        }
+
+        let cleanedName = scans?.[0]?.Name || '';
+        if (typeof cleanedName === 'string') {
+          if (cleanedName.startsWith('Name\n')) {
+            cleanedName = cleanedName.replace('Name\n', '').trim();
+          } else if (cleanedName.startsWith('Name')) {
+            cleanedName = cleanedName.replace('Name', '').trim();
+          }
+        }
+
+        const reportData = {
+          registrationNumber: registrationNumber,
+          name: cleanedName,
+          centreCode: centerCode,
+          scannedData: parsedScannedData,
+          portraitImage: scans?.[0]?.Portrait_Image,
+          documentImage: scans?.[0]?.Document_Image,
+          faceImage: enrolledFaceImage || undefined,
+          fingerTemplates: fingerTemplates,
+          enrollmentDate: enrollmentDate,
+        };
+
+        const result = await generateAndSharePDF(reportData);
+
+        if (!result.success) {
+          Alert.alert('Error', result.error || 'Failed to generate PDF report');
+        }
+      } catch (error: any) {
+        Alert.alert('Error', error.message || 'Failed to generate PDF report');
+      } finally {
+        setIsGeneratingPDF(false);
+      }
+    }, 100);
+  }, [isGeneratingPDF, scannedData, scans, registrationNumber, centerCode, enrolledFaceImage, fingerTemplates, enrollmentDate]);
+
   const getDocumentImage = useCallback(() => {
     if (!selectedDocument) return null;
 
@@ -219,11 +271,31 @@ const SuccessScreen = () => {
       case "photo":
         return enrolledFaceImage ? `data:image/jpeg;base64,${enrolledFaceImage}` : scans?.[0]?.Portrait_Image;
       case "fingerprint":
-        return (scans?.[0] as any)?.Fingerprint_Image;
+        return null; // Handled separately for left/right hands
       default:
         return selectedDocument.image;
     }
   }, [selectedDocument, scans, enrolledFaceImage]);
+
+  const getLeftHandFingers = useCallback(() => {
+    return [
+      { key: 'left_thumb', label: 'Thumb', template: fingerTemplates.left_thumb },
+      { key: 'left_index', label: 'Index', template: fingerTemplates.left_index },
+      { key: 'left_middle', label: 'Middle', template: fingerTemplates.left_middle },
+      { key: 'left_ring', label: 'Ring', template: fingerTemplates.left_ring },
+      { key: 'left_little', label: 'Little', template: fingerTemplates.left_little },
+    ];
+  }, [fingerTemplates]);
+
+  const getRightHandFingers = useCallback(() => {
+    return [
+      { key: 'right_thumb', label: 'Thumb', template: fingerTemplates.right_thumb },
+      { key: 'right_index', label: 'Index', template: fingerTemplates.right_index },
+      { key: 'right_middle', label: 'Middle', template: fingerTemplates.right_middle },
+      { key: 'right_ring', label: 'Ring', template: fingerTemplates.right_ring },
+      { key: 'right_little', label: 'Little', template: fingerTemplates.right_little },
+    ];
+  }, [fingerTemplates]);
 
   const documents = useMemo(() => [
     { icon: "🆔", name: "ID Proof", type: "id" },
@@ -414,7 +486,7 @@ const SuccessScreen = () => {
                       <Text style={styles.documentStatus}>✓ Verified</Text>
                     </View>
 
-                    <TouchableOpacity 
+                    <TouchableOpacity
                       style={styles.viewButton}
                       onPress={() => handleOpenDocumentPreview(type, name)}
                     >
@@ -423,6 +495,38 @@ const SuccessScreen = () => {
                   </View>
                 ))}
               </View>
+
+              <TouchableOpacity
+                style={[
+                  styles.downloadReportButton,
+                  isGeneratingPDF && styles.buttonDisabled,
+                ]}
+                onPress={handleDownloadReport}
+                disabled={isGeneratingPDF}
+              >
+                <LinearGradient
+                  colors={[colors.deepBlue1, colors.deepBlue2]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.downloadReportButtonGradient}
+                >
+                  {isGeneratingPDF ? (
+                    <View style={styles.loadingContainer}>
+                      <ActivityIndicator color={colors.white} size="small" />
+                      <Text style={styles.downloadReportButtonText}>
+                        Generating PDF...
+                      </Text>
+                    </View>
+                  ) : (
+                    <View style={styles.downloadReportContent}>
+                      <Text style={styles.downloadReportIcon}>📄</Text>
+                      <Text style={styles.downloadReportButtonText}>
+                        Download Enrollment Report
+                      </Text>
+                    </View>
+                  )}
+                </LinearGradient>
+              </TouchableOpacity>
 
               <TouchableOpacity
                 style={styles.modalCloseButton}
@@ -462,9 +566,55 @@ const SuccessScreen = () => {
                 <Text style={styles.documentPreviewSubtitle}>{selectedDocument.title}</Text>
               </View>
 
-              {getDocumentImage() ? (
+              {selectedDocument?.type === "fingerprint" ? (
+                <View style={styles.fingerprintContainer}>
+                  <View style={styles.handSection}>
+                    <Text style={styles.handTitle}>Left Hand</Text>
+                    <View style={styles.fingersRow}>
+                      {getLeftHandFingers().map((finger) => (
+                        <View key={finger.key} style={styles.fingerItem}>
+                          {finger.template?.base64Image ? (
+                            <Image
+                              source={{ uri: `data:image/png;base64,${finger.template.base64Image}` }}
+                              style={styles.fingerImage}
+                              resizeMode="contain"
+                            />
+                          ) : (
+                            <View style={styles.fingerPlaceholder}>
+                              <Text style={styles.fingerPlaceholderText}>N/A</Text>
+                            </View>
+                          )}
+                          <Text style={styles.fingerLabel}>{finger.label}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  </View>
+
+                  <View style={styles.handSection}>
+                    <Text style={styles.handTitle}>Right Hand</Text>
+                    <View style={styles.fingersRow}>
+                      {getRightHandFingers().map((finger) => (
+                        <View key={finger.key} style={styles.fingerItem}>
+                          {finger.template?.base64Image ? (
+                            <Image
+                              source={{ uri: `data:image/png;base64,${finger.template.base64Image}` }}
+                              style={styles.fingerImage}
+                              resizeMode="contain"
+                            />
+                          ) : (
+                            <View style={styles.fingerPlaceholder}>
+                              <Text style={styles.fingerPlaceholderText}>N/A</Text>
+                            </View>
+                          )}
+                          <Text style={styles.fingerLabel}>{finger.label}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  </View>
+                </View>
+              ) : getDocumentImage() ? (
                 <Image
-                  source={{ uri: getDocumentImage() }}
+                  source={{ uri: getDocumentImage()! }}
                   style={styles.documentPreviewImage}
                   resizeMode="contain"
                 />
@@ -806,6 +956,109 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.placeholderGray,
     fontFamily: fonts.semiBold,
+  },
+
+  fingerprintContainer: {
+    width: "100%",
+    marginVertical: 10,
+  },
+
+  handSection: {
+    marginBottom: 16,
+  },
+
+  handTitle: {
+    fontSize: 14,
+    fontFamily: fonts.bold,
+    color: colors.darkText,
+    marginBottom: 8,
+    textAlign: "center",
+  },
+
+  fingersRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    flexWrap: "wrap",
+  },
+
+  fingerItem: {
+    alignItems: "center",
+    width: "18%",
+    marginBottom: 8,
+  },
+
+  fingerImage: {
+    width: 50,
+    height: 60,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: colors.borderGray,
+  },
+
+  fingerPlaceholder: {
+    width: 50,
+    height: 60,
+    borderRadius: 6,
+    backgroundColor: colors.grayLight2,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: colors.borderGray,
+  },
+
+  fingerPlaceholderText: {
+    fontSize: 10,
+    color: colors.placeholderGray,
+    fontFamily: fonts.regular,
+  },
+
+  fingerLabel: {
+    fontSize: 9,
+    color: colors.midGray,
+    fontFamily: fonts.regular,
+    marginTop: 4,
+    textAlign: "center",
+  },
+
+  downloadReportButton: {
+    borderRadius: 10,
+    overflow: "hidden",
+    elevation: 4,
+    marginHorizontal: 0,
+    marginBottom: 12,
+  },
+
+  downloadReportButtonGradient: {
+    paddingVertical: 14,
+    alignItems: "center",
+  },
+
+  downloadReportContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+
+  downloadReportIcon: {
+    fontSize: 18,
+  },
+
+  downloadReportButtonText: {
+    color: colors.white,
+    fontSize: 14,
+    fontFamily: fonts.bold,
+  },
+
+  buttonDisabled: {
+    opacity: 0.6,
+  },
+
+  loadingContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
   },
 });
 

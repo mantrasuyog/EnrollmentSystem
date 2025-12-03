@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, StyleSheet, Animated, Dimensions } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, Animated, Dimensions, Easing } from 'react-native';
 import { colors } from '../common/colors';
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -13,14 +13,69 @@ interface HeroSectionProps {
 }
 
 const HeroSection = React.memo<HeroSectionProps>(({ fadeAnim, pulseAnim, isDarkMode }) => {
+  // Animation values for 3 circular ripples
+  const ripple1Anim = useRef(new Animated.Value(0)).current;
+  const ripple2Anim = useRef(new Animated.Value(0)).current;
+  const ripple3Anim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const createRippleAnimation = (animValue: Animated.Value, delay: number) => {
+      return Animated.loop(
+        Animated.sequence([
+          Animated.delay(delay),
+          Animated.timing(animValue, {
+            toValue: 1,
+            duration: 2000,
+            easing: Easing.out(Easing.ease),
+            useNativeDriver: true,
+          }),
+          Animated.timing(animValue, {
+            toValue: 0,
+            duration: 0,
+            useNativeDriver: true,
+          }),
+        ])
+      );
+    };
+
+    const anim1 = createRippleAnimation(ripple1Anim, 0);
+    const anim2 = createRippleAnimation(ripple2Anim, 666);
+    const anim3 = createRippleAnimation(ripple3Anim, 1333);
+
+    anim1.start();
+    anim2.start();
+    anim3.start();
+
+    return () => {
+      anim1.stop();
+      anim2.stop();
+      anim3.stop();
+    };
+  }, [ripple1Anim, ripple2Anim, ripple3Anim]);
+
+  const createRippleStyle = (animValue: Animated.Value) => ({
+    transform: [
+      {
+        scale: animValue.interpolate({
+          inputRange: [0, 1],
+          outputRange: [1.2, 2.5],
+        }),
+      },
+    ],
+    opacity: animValue.interpolate({
+      inputRange: [0, 0.5, 1],
+      outputRange: [0.6, 0.3, 0],
+    }),
+  });
+
   return (
     <Animated.View style={[styles.header, { opacity: fadeAnim }]}>
       <View style={styles.heroSection}>
         <Animated.View style={[styles.fingerprintContainer, { transform: [{ scale: pulseAnim }] }]}>
           <Text style={styles.fingerprintIcon}>👆</Text>
-          <View style={styles.ripple1} />
-          <View style={styles.ripple2} />
-          <View style={styles.ripple3} />
+          <Animated.View style={[styles.rippleCircle, createRippleStyle(ripple1Anim)]} />
+          <Animated.View style={[styles.rippleCircle, createRippleStyle(ripple2Anim)]} />
+          <Animated.View style={[styles.rippleCircle, createRippleStyle(ripple3Anim)]} />
         </Animated.View>
         <Text style={[styles.title, isDarkMode && styles.textDark]}>
           Biometric Security
@@ -55,26 +110,14 @@ const styles = StyleSheet.create({
     fontSize: 50,
     zIndex: 10,
   },
-  ripple1: {
+  rippleCircle: {
     position: 'absolute',
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: colors.white30,
-  },
-  ripple2: {
-    position: 'absolute',
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: colors.white15,
-  },
-  ripple3: {
-    position: 'absolute',
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: colors.white08,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    borderWidth: 2,
+    borderColor: colors.primaryBlue,
+    backgroundColor: 'rgba(59, 130, 246, 0.15)',
   },
   title: {
     fontSize: Math.min(26, screenWidth * 0.055),

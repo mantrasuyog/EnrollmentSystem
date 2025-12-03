@@ -1,9 +1,10 @@
-import React from 'react';
-import { StatusBar, useColorScheme } from 'react-native';
+import React, { useEffect } from 'react';
+import { StatusBar, useColorScheme, ActivityIndicator, View, AppState } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Provider } from 'react-redux';
+import { PersistGate } from 'redux-persist/integration/react';
 
 import HomeScreen from './src/screens/HomeScreen';
 import SuccessScreen from './src/screens/SuccessScreen';
@@ -16,7 +17,11 @@ import FingerCaptureScreen from './src/screens/FingerCaptureScreen';
 import Tech5FaceCaptureScreen from './src/screens/Tech5FaceCaptureScreen';
 
 import type { RootStackParamList } from './src/screens/HomeScreen';
-import { store } from './src/redux/store';
+import { store, persistor } from './src/redux/store';
+import { initDatabase } from './src/services/database.service';
+
+// Initialize SQLite database
+initDatabase();
 
 
 
@@ -25,62 +30,88 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 function App() {
   const isDarkMode = useColorScheme() === 'dark';
 
+  // Flush persistor when app goes to background to ensure data is saved
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextAppState) => {
+      if (nextAppState === 'background' || nextAppState === 'inactive') {
+        // Force flush all pending state to AsyncStorage
+        persistor.flush();
+        if (__DEV__) {
+          console.log('App going to background - flushing persistor');
+        }
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, []);
+
   return (
     <Provider store={store}>
-      <SafeAreaProvider>
-        <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
-        <NavigationContainer>
-          <Stack.Navigator initialRouteName="SplashScreen">
-            <Stack.Screen
-              name="Home"
-              component={HomeScreen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="DocumentUpload"
-              component={DocumentUploadScreen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="Success"
-              component={SuccessScreen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="FaceAndFingerEnrollment"
-              component={FaceAndFingerEnrollmentScreen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="FaceRecongition"
-              component={FaceRecongition}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="DashboardScreen"
-              component={DashboardScreen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="SplashScreen"
-              component={SplashScreen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="FingerCapture"
-              component={FingerCaptureScreen}
-              options={{ headerShown: false }}
-            />
-            
-            <Stack.Screen
-              name="FaceCapture"
-              component={Tech5FaceCaptureScreen}
-              options={{ headerShown: false }}
-            />
+      <PersistGate
+        loading={
+          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+            <ActivityIndicator size="large" />
+          </View>
+        }
+        persistor={persistor}
+      >
+        <SafeAreaProvider>
+          <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
+          <NavigationContainer>
+            <Stack.Navigator initialRouteName="SplashScreen">
+              <Stack.Screen
+                name="Home"
+                component={HomeScreen}
+                options={{ headerShown: false }}
+              />
+              <Stack.Screen
+                name="DocumentUpload"
+                component={DocumentUploadScreen}
+                options={{ headerShown: false }}
+              />
+              <Stack.Screen
+                name="Success"
+                component={SuccessScreen}
+                options={{ headerShown: false }}
+              />
+              <Stack.Screen
+                name="FaceAndFingerEnrollment"
+                component={FaceAndFingerEnrollmentScreen}
+                options={{ headerShown: false }}
+              />
+              <Stack.Screen
+                name="FaceRecongition"
+                component={FaceRecongition}
+                options={{ headerShown: false }}
+              />
+              <Stack.Screen
+                name="DashboardScreen"
+                component={DashboardScreen}
+                options={{ headerShown: false }}
+              />
+              <Stack.Screen
+                name="SplashScreen"
+                component={SplashScreen}
+                options={{ headerShown: false }}
+              />
+              <Stack.Screen
+                name="FingerCapture"
+                component={FingerCaptureScreen}
+                options={{ headerShown: false }}
+              />
 
-          </Stack.Navigator>
-        </NavigationContainer>
-      </SafeAreaProvider>
+              <Stack.Screen
+                name="FaceCapture"
+                component={Tech5FaceCaptureScreen}
+                options={{ headerShown: false }}
+              />
+
+            </Stack.Navigator>
+          </NavigationContainer>
+        </SafeAreaProvider>
+      </PersistGate>
     </Provider>
   );
 }

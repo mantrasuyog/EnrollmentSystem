@@ -13,9 +13,11 @@ import { useNavigation } from '@react-navigation/native'
 import { useSelector, useDispatch } from 'react-redux'
 import { RootState } from '../redux/store'
 import { clearEnrolledImage } from '../redux/faceEnrollmentSlice'
+import { selectFingerTemplatesForApi } from '../redux/fingerEnrollmentSlice'
+import { setUserEnrolled, resetUserEnrollment } from '../redux/userEnrollmentSlice'
 import LinearGradient from 'react-native-linear-gradient'
 import { colors } from '../common/colors'
-import { API_BASE_URL } from '../common/api'
+import apiService from '../services/api.service'
 import BiometricCard from '../components/BiometricCard'
 import ReplaceImageModal from '../components/ReplaceImageModal'
 import EnrollmentRequiredModal from '../components/EnrollmentRequiredModal'
@@ -131,6 +133,7 @@ const FaceAndFingerEnrollmentScreen = ({
   const dispatch = useDispatch()
   const existingEnrolledImage = useSelector((state: RootState) => state.faceEnrollment.enrolledImageBase64) as string | null
   const scanData = useSelector((state: RootState) => state.scan.scans[0]) // Get first scan data
+  const fingerTemplatesForApi = useSelector(selectFingerTemplatesForApi)
 
   const [showReplaceModal, setShowReplaceModal] = useState(false)
   const [showEnrollmentRequiredModal, setShowEnrollmentRequiredModal] = useState(false)
@@ -270,94 +273,58 @@ const FaceAndFingerEnrollmentScreen = ({
         scanned_json: scannedJsonObject,
       }
 
-      const response = await fetch(`${API_BASE_URL}/users/`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
+      await apiService.post('/users/', apiRequestBody)
+
+      // User registration successful, now enroll biometrics
+      const templateEnrollmentBody = {
+        biometric_data: {
+          biometrics: {
+            face: existingEnrolledImage,
+            fingerprints: fingerTemplatesForApi,
+          },
         },
-        body: JSON.stringify(apiRequestBody),
-      })
+        registration_id: scanData.Registration_Number,
+      }
 
-      const responseData = await response.json()
+      console.log('biometric_data request body:', JSON.stringify(templateEnrollmentBody, null, 2))
 
-      if (response.ok) {
-        try {
-          const templateEnrollmentBody = {
-            biometric_data: {
-              face: existingEnrolledImage,
-            },
-            registration_id: scanData.Registration_Number,
-          }
+      await apiService.post('/biometric/enroll', templateEnrollmentBody)
 
-          const templateResponse = await fetch(`${API_BASE_URL}/template/enroll`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(templateEnrollmentBody),
-          })
+      // Clear existing enrollment status first, then set new value
+      dispatch(resetUserEnrollment())
+      dispatch(setUserEnrolled(true))
 
-          const templateResponseData = await templateResponse.json()
-
-          if (templateResponse.ok) {
-            setApiResponse({
-              visible: true,
-              type: 'success',
-              message: templateResponseData.message || 'Biometric enrollment completed successfully!',
-            })
-          } else {
-            let errorMessage = 'Template enrollment failed. Please try again.'
-            if (templateResponseData.detail) {
-              errorMessage = templateResponseData.detail
-            } else if (templateResponseData.message) {
-              errorMessage = templateResponseData.message
-            } else if (templateResponseData.error) {
-              errorMessage = templateResponseData.error
-            } else if (typeof templateResponseData === 'string') {
-              errorMessage = templateResponseData
-            }
-
-            setApiResponse({
-              visible: true,
-              type: 'error',
-              message: `User registration succeeded but template enrollment failed: ${errorMessage}`,
-            })
-          }
-        } catch (templateError: any) {
-          setApiResponse({
-            visible: true,
-            type: 'error',
-            message: `User registration succeeded but template enrollment failed: ${templateError.message || 'Network error'}`,
-          })
-        }
-      } else {
-        let errorMessage = 'Failed to submit enrollment. Please try again.'
-        if (responseData.detail) {
-          errorMessage = responseData.detail
-        } else if (responseData.message) {
-          errorMessage = responseData.message
-        } else if (responseData.error) {
-          errorMessage = responseData.error
-        } else if (typeof responseData === 'string') {
-          errorMessage = responseData
-        }
-
-        setApiResponse({
-          visible: true,
-          type: 'error',
-          message: errorMessage,
-        })
+      // Move to Success step in Dashboard (step 3)
+      if (onProceedToNext) {
+        onProceedToNext()
       }
     } catch (error: any) {
+      let errorMessage = 'Network error. Please check your connection and try again.'
+
+      if (error.response?.data) {
+        const errorData = error.response.data
+        if (errorData.detail) {
+          errorMessage = errorData.detail
+        } else if (errorData.message) {
+          errorMessage = errorData.message
+        } else if (errorData.error) {
+          errorMessage = errorData.error
+        } else if (typeof errorData === 'string') {
+          errorMessage = errorData
+        }
+      } else if (error.message) {
+        errorMessage = error.message
+      }
+
       setApiResponse({
         visible: true,
         type: 'error',
-        message: error.message || 'Network error. Please check your connection and try again.',
+        message: errorMessage,
       })
     } finally {
       setIsSubmitting(false)
     }
-  }, [existingEnrolledImage, scanData, onProceedToNext])
+  }, [existingEnrolledImage, scanData, onProceedToNext, fingerTemplatesForApi])
 
   const closeEnrollmentRequiredModal = useCallback(() => {
     setShowEnrollmentRequiredModal(false)

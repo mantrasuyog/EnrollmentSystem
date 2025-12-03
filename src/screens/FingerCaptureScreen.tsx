@@ -26,9 +26,12 @@ import {
   setFingerCapture,
   selectAllFingersEnrolled,
   selectMissingCaptures,
+  selectFingerTemplates,
+  selectFingerTemplatesForApi,
   CaptureMode,
   FingerCaptureData,
   clearFingerEnrollment,
+  setFingerTemplatesFromCapture,
 } from '../redux/fingerEnrollmentSlice';
 
 interface FingerCaptureScreenProps {
@@ -61,12 +64,15 @@ const FingerCaptureScreen: React.FC<FingerCaptureScreenProps> = ({
   );
   const allFingersEnrolled = useSelector(selectAllFingersEnrolled);
   const missingCaptures = useSelector(selectMissingCaptures);
+  const fingerTemplates = useSelector(selectFingerTemplates);
+  const fingerTemplatesForApi = useSelector(selectFingerTemplatesForApi);
 
   const [isCapturing, setIsCapturing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedMode, setSelectedMode] = useState<CaptureMode>('left_slap');
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [showResetModal, setShowResetModal] = useState(false);
+  const [showIncompleteModal, setShowIncompleteModal] = useState(false);
 
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -76,6 +82,7 @@ const FingerCaptureScreen: React.FC<FingerCaptureScreenProps> = ({
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const modalAnim = useRef(new Animated.Value(0)).current;
   const resetModalAnim = useRef(new Animated.Value(0)).current;
+  const incompleteModalAnim = useRef(new Animated.Value(0)).current;
 
   const captureConfig = route?.params?.config || {};
   const onCaptureComplete = route?.params?.onCaptureComplete;
@@ -168,6 +175,20 @@ const FingerCaptureScreen: React.FC<FingerCaptureScreenProps> = ({
     }
   }, [showResetModal]);
 
+  // Incomplete modal animation
+  useEffect(() => {
+    if (showIncompleteModal) {
+      Animated.spring(incompleteModalAnim, {
+        toValue: 1,
+        friction: 8,
+        tension: 40,
+        useNativeDriver: true,
+      }).start();
+    } else {
+      incompleteModalAnim.setValue(0);
+    }
+  }, [showIncompleteModal]);
+
   const handleCapture = useCallback(async () => {
     if (Platform.OS !== 'android') {
       Alert.alert('Error', 'Fingerprint capture is only available on Android');
@@ -232,6 +253,12 @@ const FingerCaptureScreen: React.FC<FingerCaptureScreenProps> = ({
       };
 
       dispatch(setFingerCapture({mode: selectedMode, data: captureData}));
+
+      // Store individual finger templates with title and base64
+      if (result.fingers && result.fingers.length > 0) {
+        dispatch(setFingerTemplatesFromCapture(result.fingers));
+      }
+
       console.log('[FingerCapture] Capture successful for:', selectedMode);
     } catch (err: any) {
       console.log('[FingerCapture] Error:', err);
@@ -248,15 +275,18 @@ const FingerCaptureScreen: React.FC<FingerCaptureScreenProps> = ({
 
   const handleContinue = useCallback(() => {
     if (!allFingersEnrolled) {
-      const missingLabels = missingCaptures.map(mode => getModeLabel(mode));
-      Alert.alert(
-        'Incomplete Capture',
-        `Please complete all fingerprint captures.\n\nMissing: ${missingLabels.join(', ')}`,
-      );
+      setShowIncompleteModal(true);
       return;
     }
+
+    // Log stored finger templates data
+    console.log('[FingerCapture] ========== STORED FINGER TEMPLATES ==========');
+    console.log('[FingerCapture] Full Templates:', JSON.stringify(fingerTemplates, null, 2));
+    console.log('[FingerCapture] Templates for API:', JSON.stringify(fingerTemplatesForApi, null, 2));
+    console.log('[FingerCapture] =============================================');
+
     setShowConfirmModal(true);
-  }, [allFingersEnrolled, missingCaptures]);
+  }, [allFingersEnrolled, fingerTemplates, fingerTemplatesForApi]);
 
   const handleConfirmProceed = useCallback(() => {
     setShowConfirmModal(false);
@@ -277,6 +307,11 @@ const FingerCaptureScreen: React.FC<FingerCaptureScreenProps> = ({
   const handleReset = useCallback(() => {
     setShowResetModal(true);
   }, []);
+
+  const handleConfirmReset = useCallback(() => {
+    dispatch(clearFingerEnrollment());
+    setShowResetModal(false);
+  }, [dispatch]);
 
   const getModeLabel = (mode: CaptureMode): string => {
     switch (mode) {
@@ -609,7 +644,7 @@ const FingerCaptureScreen: React.FC<FingerCaptureScreenProps> = ({
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}>
-        {/* Header */}
+
         <Animated.View
           style={[
             styles.header,
@@ -622,13 +657,11 @@ const FingerCaptureScreen: React.FC<FingerCaptureScreenProps> = ({
             <Text style={styles.headerIcon}>🖐️</Text>
           </View>
           <Text style={styles.title}>Fingerprint Capture</Text>
-          <Text style={styles.subtitle}>Tech5 AirSnap Finger Scanner</Text>
+          <Text style={styles.subtitle}>Mantra Finger Scanner</Text>
         </Animated.View>
 
-        {/* Progress Bar */}
         {renderProgressBar()}
 
-        {/* Mode Selection */}
         <View style={styles.modeContainer}>
           <Text style={styles.sectionTitle}>Select Capture Mode</Text>
           <View style={styles.modeButtons}>
@@ -720,6 +753,113 @@ const FingerCaptureScreen: React.FC<FingerCaptureScreenProps> = ({
       </ScrollView>
 
       {renderConfirmationModal()}
+
+      {/* Reset Confirmation Modal */}
+      <Modal
+        visible={showResetModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowResetModal(false)}>
+        <View style={styles.modalOverlay}>
+          <Animated.View
+            style={[
+              styles.modalContainer,
+              {
+                opacity: resetModalAnim,
+                transform: [{scale: resetModalAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0.9, 1],
+                })}],
+              },
+            ]}>
+            <View style={styles.modalHeader}>
+              <View style={[styles.modalIconCircle, {backgroundColor: '#FEE2E2'}]}>
+                <Text style={styles.modalIcon}>🗑️</Text>
+              </View>
+              <Text style={styles.modalTitle}>Reset All Captures?</Text>
+              <Text style={styles.modalSubtitle}>
+                This will clear all captured fingerprints. You'll need to recapture all 4 modes.
+              </Text>
+            </View>
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={styles.modalButtonCancel}
+                onPress={() => setShowResetModal(false)}
+                activeOpacity={0.8}>
+                <Text style={styles.modalButtonCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButtonConfirm, {backgroundColor: '#DC2626'}]}
+                onPress={handleConfirmReset}
+                activeOpacity={0.8}>
+                <Text style={styles.modalButtonConfirmText}>Reset All</Text>
+              </TouchableOpacity>
+            </View>
+          </Animated.View>
+        </View>
+      </Modal>
+
+      {/* Incomplete Capture Modal */}
+      <Modal
+        visible={showIncompleteModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowIncompleteModal(false)}>
+        <View style={styles.modalOverlay}>
+          <Animated.View
+            style={[
+              styles.incompleteModalContainer,
+              {
+                opacity: incompleteModalAnim,
+                transform: [{scale: incompleteModalAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0.9, 1],
+                })}],
+              },
+            ]}>
+            <View style={styles.incompleteModalHeader}>
+              <View style={styles.incompleteIconCircle}>
+                <Text style={styles.incompleteIcon}>⚠️</Text>
+              </View>
+              <Text style={styles.incompleteModalTitle}>Incomplete Capture</Text>
+              <Text style={styles.incompleteModalSubtitle}>
+                Please complete all fingerprint captures before proceeding
+              </Text>
+            </View>
+
+            <View style={styles.missingCapturesContainer}>
+              <Text style={styles.missingCapturesLabel}>Missing Captures:</Text>
+              <View style={styles.missingCapturesList}>
+                {missingCaptures.map((mode, index) => (
+                  <View key={mode} style={styles.missingCaptureItem}>
+                    <View style={styles.missingCaptureNumber}>
+                      <Text style={styles.missingCaptureNumberText}>{index + 1}</Text>
+                    </View>
+                    <Text style={styles.missingCaptureText}>{getModeLabel(mode)}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+
+            <View style={styles.incompleteProgressContainer}>
+              <View style={styles.incompleteProgressHeader}>
+                <Text style={styles.incompleteProgressLabel}>Progress</Text>
+                <Text style={styles.incompleteProgressCount}>{enrolledCount}/4 completed</Text>
+              </View>
+              <View style={styles.incompleteProgressBarBg}>
+                <View style={[styles.incompleteProgressBarFill, {width: `${(enrolledCount / 4) * 100}%`}]} />
+              </View>
+            </View>
+
+            <TouchableOpacity
+              style={styles.incompleteModalButton}
+              onPress={() => setShowIncompleteModal(false)}
+              activeOpacity={0.8}>
+              <Text style={styles.incompleteModalButtonText}>Continue Capturing</Text>
+            </TouchableOpacity>
+          </Animated.View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -1310,6 +1450,148 @@ const styles = StyleSheet.create({
   modalButtonConfirmText: {
     color: '#FFFFFF',
     fontSize: 15,
+    fontFamily: FONTS.bold,
+  },
+  // Incomplete Capture Modal Styles
+  incompleteModalContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    width: '100%',
+    maxWidth: 380,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 10},
+    shadowOpacity: 0.25,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  incompleteModalHeader: {
+    alignItems: 'center',
+    paddingTop: 28,
+    paddingHorizontal: 24,
+    paddingBottom: 20,
+    backgroundColor: '#FEF3C7',
+  },
+  incompleteIconCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+    shadowColor: '#F59E0B',
+    shadowOffset: {width: 0, height: 4},
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  incompleteIcon: {
+    fontSize: 32,
+  },
+  incompleteModalTitle: {
+    fontSize: 22,
+    fontFamily: FONTS.bold,
+    color: '#92400E',
+    marginBottom: 8,
+  },
+  incompleteModalSubtitle: {
+    fontSize: 14,
+    fontFamily: FONTS.regular,
+    color: '#A16207',
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  missingCapturesContainer: {
+    padding: 20,
+    backgroundColor: '#FFFFFF',
+  },
+  missingCapturesLabel: {
+    fontSize: 14,
+    fontFamily: FONTS.semiBold,
+    color: '#64748B',
+    marginBottom: 12,
+  },
+  missingCapturesList: {
+    gap: 10,
+  },
+  missingCaptureItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF2F2',
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#FECACA',
+  },
+  missingCaptureNumber: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#DC2626',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  missingCaptureNumberText: {
+    fontSize: 13,
+    fontFamily: FONTS.bold,
+    color: '#FFFFFF',
+  },
+  missingCaptureText: {
+    fontSize: 15,
+    fontFamily: FONTS.medium,
+    color: '#991B1B',
+  },
+  incompleteProgressContainer: {
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+    backgroundColor: '#FFFFFF',
+  },
+  incompleteProgressHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  incompleteProgressLabel: {
+    fontSize: 13,
+    fontFamily: FONTS.medium,
+    color: '#64748B',
+  },
+  incompleteProgressCount: {
+    fontSize: 13,
+    fontFamily: FONTS.semiBold,
+    color: '#F59E0B',
+  },
+  incompleteProgressBarBg: {
+    height: 8,
+    backgroundColor: '#E2E8F0',
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  incompleteProgressBarFill: {
+    height: '100%',
+    backgroundColor: '#F59E0B',
+    borderRadius: 4,
+  },
+  incompleteModalButton: {
+    backgroundColor: '#6366F1',
+    marginHorizontal: 20,
+    marginBottom: 20,
+    paddingVertical: 16,
+    borderRadius: 14,
+    alignItems: 'center',
+    shadowColor: '#6366F1',
+    shadowOffset: {width: 0, height: 4},
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  incompleteModalButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
     fontFamily: FONTS.bold,
   },
 });

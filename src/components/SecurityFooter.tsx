@@ -33,10 +33,12 @@ const styles = StyleSheet.create({
   securityBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.white08,
+    backgroundColor: 'rgba(219, 234, 254, 0.6)',
     paddingHorizontal: Math.min(16, screenWidth * 0.035),
     paddingVertical: Math.min(10, screenWidth * 0.022),
     borderRadius: Math.min(20, screenWidth * 0.045),
+    borderLeftWidth: 3,
+    borderLeftColor: 'rgba(30, 64, 175, 0.8)',
   },
   lockIcon: {
     fontSize: Math.min(14, screenWidth * 0.032),

@@ -1,5 +1,5 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse, AxiosError } from 'axios'
-import { API_CONFIG } from '../config/api.config'
+import { API_CONFIG, API_ENDPOINTS } from '../config/api.config'
 
 const apiClient: AxiosInstance = axios.create({
   baseURL: API_CONFIG.BASE_URL,
@@ -12,13 +12,12 @@ const apiClient: AxiosInstance = axios.create({
 
 apiClient.interceptors.request.use(
   (config) => {
-    if (__DEV__) {
-      console.log('API Request:', {
-        method: config.method?.toUpperCase(),
-        url: config.url,
-        data: config.data,
-      })
-    }
+    console.log('========== API REQUEST ==========')
+    console.log('Method:', config.method?.toUpperCase())
+    console.log('URL:', (config.baseURL || '') + (config.url || ''))
+    console.log('Headers:', JSON.stringify(config.headers, null, 2))
+    console.log('Request Body:', JSON.stringify(config.data, null, 2))
+    console.log('=================================')
 
     return config
   },
@@ -30,12 +29,11 @@ apiClient.interceptors.request.use(
 
 apiClient.interceptors.response.use(
   (response: AxiosResponse) => {
-    if (__DEV__) {
-      console.log('API Response:', {
-        status: response.status,
-        data: response.data,
-      })
-    }
+    console.log('========== API RESPONSE ==========')
+    console.log('Status:', response.status)
+    console.log('URL:', response.config.url)
+    console.log('Response Data:', JSON.stringify(response.data, null, 2))
+    console.log('==================================')
 
     return response
   },
@@ -77,6 +75,27 @@ apiClient.interceptors.response.use(
   }
 )
 
+export interface UserExistsResponse {
+  message: string
+  status: string
+  user?: {
+    id: number
+    registration_id: string
+    center_code: string
+    name: string
+    document_image: string
+    portrait_image: string
+    scanned_json: {
+      dob: string
+      gender: string
+      document_type: string
+      'Document number': string
+    }
+    created_at: string
+    updated_at: string
+  }
+}
+
 export const apiService = {
   get: <T = any>(url: string, config?: AxiosRequestConfig): Promise<AxiosResponse<T>> => {
     return apiClient.get<T>(url, config)
@@ -96,6 +115,11 @@ export const apiService = {
 
   delete: <T = any>(url: string, config?: AxiosRequestConfig): Promise<AxiosResponse<T>> => {
     return apiClient.delete<T>(url, config)
+  },
+
+  checkUserExists: async (registrationId: string): Promise<UserExistsResponse> => {
+    const response = await apiClient.get<UserExistsResponse>(`${API_ENDPOINTS.USER_EXISTS}/${registrationId}`)
+    return response.data
   },
 }
 

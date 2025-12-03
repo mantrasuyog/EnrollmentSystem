@@ -1,4 +1,10 @@
-import React, { useEffect, useRef, useMemo, useCallback } from 'react';
+import React, {
+  useEffect,
+  useRef,
+  useMemo,
+  useCallback,
+  useState,
+} from 'react';
 import {
   View,
   Text,
@@ -8,9 +14,24 @@ import {
   Animated,
   Image,
   ScrollView,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
+import { useDispatch } from 'react-redux';
 import { colors } from '../common/colors';
+import {
+  FingerTemplates,
+  FingerKey,
+  fingerKeyToTitle,
+} from '../redux/fingerEnrollmentSlice';
+import { resetUserEnrollment } from '../redux/userEnrollmentSlice';
+import { clearScanData } from '../redux/scanSlice';
+import { clearEnrolledImage } from '../redux/faceEnrollmentSlice';
+import { clearFingerEnrollment } from '../redux/fingerEnrollmentSlice';
+import apiService from '../services/api.service';
+import { clearAllEnrollmentData } from '../services/database.service';
+import { generateAndSharePDF } from '../services/pdfReport.service';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -24,6 +45,9 @@ interface EnrollmentStatusModalProps {
   visible: boolean;
   onClose: () => void;
   onEnrollNew: () => void;
+  onEnrollmentSuccess: () => void;
+  isUserEnrolled: boolean;
+  fingerTemplatesForApi: Record<string, string>;
   enrollmentData: {
     scanData?: {
       Registration_Number: string;
@@ -34,6 +58,7 @@ interface EnrollmentStatusModalProps {
       Centre_Code: string;
     };
     faceImage?: string;
+    fingerTemplates?: FingerTemplates;
   };
 }
 
@@ -41,8 +66,15 @@ const EnrollmentStatusModal: React.FC<EnrollmentStatusModalProps> = ({
   visible,
   onClose,
   onEnrollNew,
+  onEnrollmentSuccess,
+  isUserEnrolled,
+  fingerTemplatesForApi,
   enrollmentData,
 }) => {
+  const dispatch = useDispatch();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const modalOpacity = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -53,6 +85,7 @@ const EnrollmentStatusModal: React.FC<EnrollmentStatusModalProps> = ({
     type: string;
     title: string;
     image?: string;
+    hand?: 'left' | 'right';
   } | null>(null);
 
   useEffect(() => {
@@ -83,7 +116,7 @@ const EnrollmentStatusModal: React.FC<EnrollmentStatusModalProps> = ({
             duration: 1500,
             useNativeDriver: true,
           }),
-        ])
+        ]),
       ).start();
     } else {
       modalOpacity.setValue(0);
@@ -109,15 +142,237 @@ const EnrollmentStatusModal: React.FC<EnrollmentStatusModalProps> = ({
     return parseScanData(enrollmentData.scanData.scanned_json);
   }, [enrollmentData.scanData]);
 
-  const handleOpenDocumentPreview = useCallback((documentType: string, title: string) => {
-    setSelectedDocument({ type: documentType, title });
-    setShowDocumentPreview(true);
-    Animated.timing(documentPreviewOpacity, {
-      toValue: 1,
-      duration: 300,
-      useNativeDriver: true,
-    }).start();
-  }, [documentPreviewOpacity]);
+  const leftHandFingers: FingerKey[] = [
+    'left_thumb',
+    'left_index',
+    'left_middle',
+    'left_ring',
+    'left_little',
+  ];
+  const rightHandFingers: FingerKey[] = [
+    'right_thumb',
+    'right_index',
+    'right_middle',
+    'right_ring',
+    'right_little',
+  ];
+
+  const hasLeftHandFingerprints = useMemo(() => {
+    if (!enrollmentData.fingerTemplates) return false;
+    return leftHandFingers.some(
+      key => enrollmentData.fingerTemplates?.[key] !== null,
+    );
+  }, [enrollmentData.fingerTemplates]);
+
+  const hasRightHandFingerprints = useMemo(() => {
+    if (!enrollmentData.fingerTemplates) return false;
+    return rightHandFingers.some(
+      key => enrollmentData.fingerTemplates?.[key] !== null,
+    );
+  }, [enrollmentData.fingerTemplates]);
+
+  const hasAnyFingerprints =
+    hasLeftHandFingerprints || hasRightHandFingerprints;
+
+  const canSubmitEnrollment = useMemo(() => {
+    return (
+      !isUserEnrolled &&
+      enrollmentData.scanData &&
+      enrollmentData.faceImage &&
+      hasAnyFingerprints
+    );
+  }, [
+    isUserEnrolled,
+    enrollmentData.scanData,
+    enrollmentData.faceImage,
+    hasAnyFingerprints,
+  ]);
+
+  const handleSubmitEnrollment = useCallback(async () => {
+    if (!enrollmentData.scanData || !enrollmentData.faceImage) {
+      setSubmitError('Missing required enrollment data.');
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      setSubmitError(null);
+
+      let parsedScannedJson;
+      try {
+        parsedScannedJson =
+          typeof enrollmentData.scanData.scanned_json === 'string'
+            ? JSON.parse(enrollmentData.scanData.scanned_json)
+            : enrollmentData.scanData.scanned_json;
+      } catch (e) {
+        parsedScannedJson = [];
+      }
+
+      let scannedJsonObject: Record<string, any> = {};
+      if (Array.isArray(parsedScannedJson)) {
+        parsedScannedJson.forEach((item: any) => {
+          if (item.name && item.value !== undefined) {
+            scannedJsonObject[item.name] = item.value;
+          }
+        });
+      } else if (typeof parsedScannedJson === 'object') {
+        scannedJsonObject = parsedScannedJson;
+      }
+
+      let cleanedName = enrollmentData.scanData.Name || '';
+      if (cleanedName.startsWith('Name\n')) {
+        cleanedName = cleanedName.replace('Name\n', '').trim();
+      } else if (cleanedName.startsWith('Name')) {
+        cleanedName = cleanedName.replace('Name', '').trim();
+      }
+
+      const apiRequestBody = {
+        center_code: enrollmentData.scanData.Centre_Code,
+        document_image: enrollmentData.scanData.Document_Image,
+        name: cleanedName,
+        portrait_image: enrollmentData.scanData.Portrait_Image,
+        registration_id: enrollmentData.scanData.Registration_Number,
+        scanned_json: scannedJsonObject,
+      };
+
+      await apiService.post('/users/', apiRequestBody);
+
+      const templateEnrollmentBody = {
+        biometric_data: {
+          biometrics: {
+            face: enrollmentData.faceImage,
+            fingerprints: fingerTemplatesForApi,
+          },
+        },
+        registration_id: enrollmentData.scanData.Registration_Number,
+      };
+
+      if (__DEV__) {
+        console.log(
+          'biometric_data request body:',
+          JSON.stringify(templateEnrollmentBody, null, 2),
+        );
+      }
+
+      await apiService.post('/biometric/enroll', templateEnrollmentBody);
+
+      // Clear all Redux slices after successful enrollment (Status: 200)
+      dispatch(clearScanData());
+      dispatch(clearEnrolledImage());
+      dispatch(clearFingerEnrollment());
+      dispatch(resetUserEnrollment());
+
+      // Clear SQLite data
+      clearAllEnrollmentData();
+
+      setSubmitError(null);
+
+      // Navigate to new enrollment
+      onEnrollNew();
+    } catch (error: any) {
+      let errorMessage =
+        'Network error. Please check your connection and try again.';
+
+      if (error.response?.data) {
+        const errorData = error.response.data;
+        if (errorData.detail) {
+          errorMessage = errorData.detail;
+        } else if (errorData.message) {
+          errorMessage = errorData.message;
+        } else if (errorData.error) {
+          errorMessage = errorData.error;
+        } else if (typeof errorData === 'string') {
+          errorMessage = errorData;
+        }
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
+      setSubmitError(errorMessage);
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [enrollmentData, fingerTemplatesForApi, dispatch, onEnrollmentSuccess]);
+
+  const getFingerCountForHand = useCallback(
+    (hand: 'left' | 'right') => {
+      if (!enrollmentData.fingerTemplates) return 0;
+      const fingers = hand === 'left' ? leftHandFingers : rightHandFingers;
+      return fingers.filter(
+        key => enrollmentData.fingerTemplates?.[key] !== null,
+      ).length;
+    },
+    [enrollmentData.fingerTemplates],
+  );
+
+  const handleDownloadReport = useCallback(() => {
+    if (isGeneratingPDF) return;
+
+    setIsGeneratingPDF(true);
+
+    setTimeout(async () => {
+      try {
+        let parsedScannedData: Array<{ name: string; value: string }> = [];
+        if (enrollmentData.scanData?.scanned_json) {
+          try {
+            const parsed = JSON.parse(enrollmentData.scanData.scanned_json);
+            if (Array.isArray(parsed)) {
+              parsedScannedData = parsed;
+            }
+          } catch {
+            console.warn('Failed to parse scanned_json for PDF report');
+          }
+        }
+
+        let cleanedName = enrollmentData.scanData?.Name || '';
+        if (cleanedName.startsWith('Name\n')) {
+          cleanedName = cleanedName.replace('Name\n', '').trim();
+        } else if (cleanedName.startsWith('Name')) {
+          cleanedName = cleanedName.replace('Name', '').trim();
+        }
+
+        const reportData = {
+          registrationNumber:
+            enrollmentData.scanData?.Registration_Number || '',
+          name: cleanedName,
+          centreCode: enrollmentData.scanData?.Centre_Code || '',
+          scannedData: parsedScannedData,
+          portraitImage: enrollmentData.scanData?.Portrait_Image,
+          documentImage: enrollmentData.scanData?.Document_Image,
+          faceImage: enrollmentData.faceImage,
+          fingerTemplates: enrollmentData.fingerTemplates,
+          enrollmentDate: new Date().toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+          }),
+        };
+
+        const result = await generateAndSharePDF(reportData);
+
+        if (!result.success) {
+          Alert.alert('Error', result.error || 'Failed to generate PDF report');
+        }
+      } catch (error: any) {
+        Alert.alert('Error', error.message || 'Failed to generate PDF report');
+      } finally {
+        setIsGeneratingPDF(false);
+      }
+    }, 100);
+  }, [enrollmentData, isGeneratingPDF]);
+
+  const handleOpenDocumentPreview = useCallback(
+    (documentType: string, title: string, hand?: 'left' | 'right') => {
+      setSelectedDocument({ type: documentType, title, hand });
+      setShowDocumentPreview(true);
+      Animated.timing(documentPreviewOpacity, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }).start();
+    },
+    [documentPreviewOpacity],
+  );
 
   const handleCloseDocumentPreview = useCallback(() => {
     Animated.timing(documentPreviewOpacity, {
@@ -162,7 +417,8 @@ const EnrollmentStatusModal: React.FC<EnrollmentStatusModalProps> = ({
         }
         return null;
       case 'fingerprint':
-        const fingerprintImage = (enrollmentData.scanData as any)?.Fingerprint_Image;
+        const fingerprintImage = (enrollmentData.scanData as any)
+          ?.Fingerprint_Image;
         if (fingerprintImage) {
           if (fingerprintImage.startsWith('data:image')) {
             return fingerprintImage;
@@ -192,46 +448,86 @@ const EnrollmentStatusModal: React.FC<EnrollmentStatusModalProps> = ({
           styles.modalContent,
           {
             opacity: modalOpacity,
-            transform: [{ scale: scaleAnim }]
-          }
+            transform: [{ scale: scaleAnim }],
+          },
         ]}
       >
         <TouchableOpacity style={styles.closeButton} onPress={onClose}>
           <Text style={styles.closeIcon}>✕</Text>
         </TouchableOpacity>
 
-        <ScrollView style={styles.modalScrollView} showsVerticalScrollIndicator={true}>
+        <ScrollView
+          style={styles.modalScrollView}
+          showsVerticalScrollIndicator={true}
+        >
           <LinearGradient
-            colors={[colors.purple1, colors.purple2]}
+            colors={
+              isUserEnrolled
+                ? ['#6366F1', '#8B5CF6', '#A855F7']
+                : ['#F59E0B', '#F97316', '#EA580C']
+            }
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.gradientHeader}
           >
+            <View style={styles.headerPattern} />
             <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
-              <View style={styles.checkmarkCircle}>
-                <Text style={styles.checkmarkIcon}>✓</Text>
-              </View>
+              <LinearGradient
+                colors={isUserEnrolled ? ['#22C55E', '#16A34A'] : ['#FBBF24', '#F59E0B']}
+                style={[styles.checkmarkCircle, !isUserEnrolled && styles.pendingCircle]}
+              >
+                <Text style={styles.checkmarkIcon}>
+                  {isUserEnrolled ? '✓' : '⏳'}
+                </Text>
+              </LinearGradient>
             </Animated.View>
-            <Text style={styles.modalTitle}>Enrollment Complete!</Text>
-            <Text style={styles.modalSubtitle}>Your biometric data is already registered</Text>
+            <Text style={styles.modalTitle}>
+              {isUserEnrolled ? 'Enrollment Complete!' : 'Submission Pending'}
+            </Text>
+            <Text style={styles.modalSubtitle}>
+              {isUserEnrolled
+                ? 'Your biometric data has been successfully registered'
+                : 'Your enrollment data is ready for submission'}
+            </Text>
+            <View style={styles.headerBadge}>
+              <Text style={styles.headerBadgeText}>
+                {isUserEnrolled ? 'VERIFIED' : 'PENDING'}
+              </Text>
+            </View>
           </LinearGradient>
 
           <View style={styles.profileImageContainer}>
-            {enrollmentData.faceImage ? (
-              <Image
-                source={{ uri: `data:image/jpeg;base64,${enrollmentData.faceImage}` }}
-                style={styles.profileImageActual}
-              />
-            ) : enrollmentData.scanData?.Portrait_Image ? (
-              <Image
-                source={{ uri: `data:image/jpeg;base64,${enrollmentData.scanData.Portrait_Image}` }}
-                style={styles.profileImageActual}
-              />
-            ) : (
-              <View style={styles.profileImage}>
-                <Text style={styles.profileImagePlaceholder}>👤</Text>
+            <View style={styles.profileImageWrapper}>
+              <LinearGradient
+                colors={['#6366F1', '#8B5CF6', '#A855F7']}
+                style={styles.profileImageRing}
+              >
+                <View style={styles.profileImageInner}>
+                  {enrollmentData.faceImage ? (
+                    <Image
+                      source={{
+                        uri: `data:image/jpeg;base64,${enrollmentData.faceImage}`,
+                      }}
+                      style={styles.profileImageActual}
+                    />
+                  ) : enrollmentData.scanData?.Portrait_Image ? (
+                    <Image
+                      source={{
+                        uri: `data:image/jpeg;base64,${enrollmentData.scanData.Portrait_Image}`,
+                      }}
+                      style={styles.profileImageActual}
+                    />
+                  ) : (
+                    <View style={styles.profileImage}>
+                      <Text style={styles.profileImagePlaceholder}>👤</Text>
+                    </View>
+                  )}
+                </View>
+              </LinearGradient>
+              <View style={styles.profileVerifiedBadge}>
+                <Text style={styles.profileVerifiedIcon}>✓</Text>
               </View>
-            )}
+            </View>
           </View>
 
           <View style={styles.registrationCard}>
@@ -241,6 +537,7 @@ const EnrollmentStatusModal: React.FC<EnrollmentStatusModalProps> = ({
                 {enrollmentData.scanData?.Registration_Number || 'N/A'}
               </Text>
             </View>
+            <View style={styles.registrationDivider} />
             <View style={styles.registrationItem}>
               <Text style={styles.registrationLabel}>Centre Code</Text>
               <Text style={styles.registrationValue}>
@@ -255,22 +552,27 @@ const EnrollmentStatusModal: React.FC<EnrollmentStatusModalProps> = ({
             {enrollmentData.scanData?.Name && (
               <View style={styles.detailItem}>
                 <Text style={styles.detailLabel}>Full Name:</Text>
-                <Text style={styles.detailValueText}>{enrollmentData.scanData.Name}</Text>
+                <Text style={styles.detailValueText}>
+                  {enrollmentData.scanData.Name}
+                </Text>
               </View>
             )}
 
-            {scannedData && scannedData.length > 0 ? (
-              scannedData.map((item: any, index: number) => (
-                <View key={index} style={styles.detailItem}>
-                  <Text style={styles.detailLabel}>{item.name}:</Text>
-                  <Text style={styles.detailValueText}>{item.value}</Text>
-                </View>
-              ))
-            ) : null}
+            {scannedData && scannedData.length > 0
+              ? scannedData.map((item: any, index: number) => (
+                  <View key={index} style={styles.detailItem}>
+                    <Text style={styles.detailLabel}>{item.name}:</Text>
+                    <Text style={styles.detailValueText}>{item.value}</Text>
+                  </View>
+                ))
+              : null}
 
-            {(!scannedData || scannedData.length === 0) && !enrollmentData.scanData?.Name && (
-              <Text style={styles.noDataText}>No enrollment data available</Text>
-            )}
+            {(!scannedData || scannedData.length === 0) &&
+              !enrollmentData.scanData?.Name && (
+                <Text style={styles.noDataText}>
+                  No enrollment data available
+                </Text>
+              )}
           </View>
 
           <View style={styles.documentsSection}>
@@ -278,9 +580,12 @@ const EnrollmentStatusModal: React.FC<EnrollmentStatusModalProps> = ({
 
             {enrollmentData.scanData?.Document_Image && (
               <View style={styles.documentCard}>
-                <View style={styles.documentIconContainer}>
+                <LinearGradient
+                  colors={['#EEF2FF', '#E0E7FF']}
+                  style={styles.documentIconContainer}
+                >
                   <Text style={styles.documentIcon}>🆔</Text>
-                </View>
+                </LinearGradient>
                 <View style={styles.documentInfo}>
                   <Text style={styles.documentName}>ID Document</Text>
                   <Text style={styles.documentStatus}>✓ Verified</Text>
@@ -289,90 +594,289 @@ const EnrollmentStatusModal: React.FC<EnrollmentStatusModalProps> = ({
                   style={styles.viewButton}
                   onPress={() => handleOpenDocumentPreview('id', 'ID Document')}
                 >
-                  <Text style={styles.viewButtonText}>View</Text>
+                  <LinearGradient
+                    colors={['#6366F1', '#8B5CF6']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.viewButtonGradient}
+                  >
+                    <Text style={styles.viewButtonText}>View</Text>
+                  </LinearGradient>
                 </TouchableOpacity>
               </View>
             )}
 
             {enrollmentData.scanData?.Portrait_Image && (
               <View style={styles.documentCard}>
-                <View style={styles.documentIconContainer}>
+                <LinearGradient
+                  colors={['#ECFDF5', '#D1FAE5']}
+                  style={styles.documentIconContainer}
+                >
                   <Text style={styles.documentIcon}>📷</Text>
-                </View>
+                </LinearGradient>
                 <View style={styles.documentInfo}>
                   <Text style={styles.documentName}>Portrait Photo</Text>
                   <Text style={styles.documentStatus}>✓ Verified</Text>
                 </View>
                 <TouchableOpacity
                   style={styles.viewButton}
-                  onPress={() => handleOpenDocumentPreview('photo', 'Portrait Photo')}
+                  onPress={() =>
+                    handleOpenDocumentPreview('photo', 'Portrait Photo')
+                  }
                 >
-                  <Text style={styles.viewButtonText}>View</Text>
+                  <LinearGradient
+                    colors={['#6366F1', '#8B5CF6']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.viewButtonGradient}
+                  >
+                    <Text style={styles.viewButtonText}>View</Text>
+                  </LinearGradient>
                 </TouchableOpacity>
               </View>
             )}
 
             {enrollmentData.faceImage && (
               <View style={styles.documentCard}>
-                <View style={styles.documentIconContainer}>
+                <LinearGradient
+                  colors={['#FEF3C7', '#FDE68A']}
+                  style={styles.documentIconContainer}
+                >
                   <Text style={styles.documentIcon}>😊</Text>
-                </View>
+                </LinearGradient>
                 <View style={styles.documentInfo}>
                   <Text style={styles.documentName}>Face Enrollment</Text>
                   <Text style={styles.documentStatus}>✓ Verified</Text>
                 </View>
                 <TouchableOpacity
                   style={styles.viewButton}
-                  onPress={() => handleOpenDocumentPreview('face', 'Face Enrollment')}
+                  onPress={() =>
+                    handleOpenDocumentPreview('face', 'Face Enrollment')
+                  }
                 >
-                  <Text style={styles.viewButtonText}>View</Text>
+                  <LinearGradient
+                    colors={['#6366F1', '#8B5CF6']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.viewButtonGradient}
+                  >
+                    <Text style={styles.viewButtonText}>View</Text>
+                  </LinearGradient>
                 </TouchableOpacity>
               </View>
             )}
 
             {(enrollmentData.scanData as any)?.Fingerprint_Image && (
               <View style={styles.documentCard}>
-                <View style={styles.documentIconContainer}>
+                <LinearGradient
+                  colors={['#FCE7F3', '#FBCFE8']}
+                  style={styles.documentIconContainer}
+                >
                   <Text style={styles.documentIcon}>👆</Text>
-                </View>
+                </LinearGradient>
                 <View style={styles.documentInfo}>
                   <Text style={styles.documentName}>Fingerprint</Text>
                   <Text style={styles.documentStatus}>✓ Verified</Text>
                 </View>
                 <TouchableOpacity
                   style={styles.viewButton}
-                  onPress={() => handleOpenDocumentPreview('fingerprint', 'Fingerprint')}
+                  onPress={() =>
+                    handleOpenDocumentPreview('fingerprint', 'Fingerprint')
+                  }
                 >
-                  <Text style={styles.viewButtonText}>View</Text>
+                  <LinearGradient
+                    colors={['#6366F1', '#8B5CF6']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.viewButtonGradient}
+                  >
+                    <Text style={styles.viewButtonText}>View</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {hasLeftHandFingerprints && (
+              <View style={styles.documentCard}>
+                <LinearGradient
+                  colors={['#F3E8FF', '#E9D5FF']}
+                  style={styles.documentIconContainer}
+                >
+                  <Text style={styles.documentIcon}>🤚</Text>
+                </LinearGradient>
+                <View style={styles.documentInfo}>
+                  <Text style={styles.documentName}>
+                    Left Hand Fingerprints
+                  </Text>
+                  <Text style={styles.documentStatus}>
+                    ✓ {getFingerCountForHand('left')} finger(s) enrolled
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  style={styles.viewButton}
+                  onPress={() =>
+                    handleOpenDocumentPreview(
+                      'fingerprint_hand',
+                      'Left Hand Fingerprints',
+                      'left',
+                    )
+                  }
+                >
+                  <LinearGradient
+                    colors={['#6366F1', '#8B5CF6']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.viewButtonGradient}
+                  >
+                    <Text style={styles.viewButtonText}>View</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {hasRightHandFingerprints && (
+              <View style={styles.documentCard}>
+                <LinearGradient
+                  colors={['#DBEAFE', '#BFDBFE']}
+                  style={styles.documentIconContainer}
+                >
+                  <Text style={styles.documentIcon}>✋</Text>
+                </LinearGradient>
+                <View style={styles.documentInfo}>
+                  <Text style={styles.documentName}>
+                    Right Hand Fingerprints
+                  </Text>
+                  <Text style={styles.documentStatus}>
+                    ✓ {getFingerCountForHand('right')} finger(s) enrolled
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  style={styles.viewButton}
+                  onPress={() =>
+                    handleOpenDocumentPreview(
+                      'fingerprint_hand',
+                      'Right Hand Fingerprints',
+                      'right',
+                    )
+                  }
+                >
+                  <LinearGradient
+                    colors={['#6366F1', '#8B5CF6']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.viewButtonGradient}
+                  >
+                    <Text style={styles.viewButtonText}>View</Text>
+                  </LinearGradient>
                 </TouchableOpacity>
               </View>
             )}
           </View>
 
           <View style={styles.actionButtonsContainer}>
-            <TouchableOpacity style={styles.enrollNewButton} onPress={onEnrollNew}>
-              <LinearGradient
-                colors={[colors.green1, colors.green2]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.enrollNewButtonGradient}
-              >
-                <Text style={styles.enrollNewButtonText}>Enroll New Documents</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.modalCloseButton} onPress={onClose}>
-              <View style={styles.closeButtonPlain}>
-                <Text style={styles.closeButtonPlainText}>Close</Text>
+            {submitError && (
+              <View style={styles.errorContainer}>
+                <Text style={styles.errorText}>{submitError}</Text>
               </View>
-            </TouchableOpacity>
+            )}
+
+            {canSubmitEnrollment && (
+              <TouchableOpacity
+                style={[
+                  styles.submitEnrollmentButton,
+                  isSubmitting && styles.buttonDisabled,
+                ]}
+                onPress={handleSubmitEnrollment}
+                disabled={isSubmitting}
+              >
+                <LinearGradient
+                  colors={[colors.purple1, colors.purple2]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.submitEnrollmentButtonGradient}
+                >
+                  {isSubmitting ? (
+                    <View style={styles.loadingContainer}>
+                      <ActivityIndicator color={colors.white} size="small" />
+                      <Text style={styles.submitEnrollmentButtonText}>
+                        Submitting...
+                      </Text>
+                    </View>
+                  ) : (
+                    <Text style={styles.submitEnrollmentButtonText}>
+                      Submit Enrollment
+                    </Text>
+                  )}
+                </LinearGradient>
+              </TouchableOpacity>
+            )}
+
+            {/* Show Download Report button if user is enrolled */}
+            {isUserEnrolled && (
+              <TouchableOpacity
+                style={[
+                  styles.downloadReportButton,
+                  isGeneratingPDF && styles.buttonDisabled,
+                ]}
+                onPress={handleDownloadReport}
+                disabled={isGeneratingPDF}
+              >
+                <LinearGradient
+                  colors={[colors.deepBlue1, colors.deepBlue2]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.downloadReportButtonGradient}
+                >
+                  {isGeneratingPDF ? (
+                    <View style={styles.loadingContainer}>
+                      <ActivityIndicator color={colors.white} size="small" />
+                      <Text style={styles.downloadReportButtonText}>
+                        Generating PDF...
+                      </Text>
+                    </View>
+                  ) : (
+                    <View style={styles.downloadReportContent}>
+                      <Text style={styles.downloadReportIcon}>📄</Text>
+                      <Text style={styles.downloadReportButtonText}>
+                        Download Enrollment Report
+                      </Text>
+                    </View>
+                  )}
+                </LinearGradient>
+              </TouchableOpacity>
+            )}
+
+            <View style={styles.buttonRow}>
+              <TouchableOpacity
+                style={styles.enrollNewButton}
+                onPress={onEnrollNew}
+              >
+                <LinearGradient
+                  colors={[colors.green1, colors.green2]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.enrollNewButtonGradient}
+                >
+                  <Text style={styles.enrollNewButtonText}>Enroll New</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.modalCloseButton} onPress={onClose}>
+                <View style={styles.closeButtonPlain}>
+                  <Text style={styles.closeButtonPlainText}>Close</Text>
+                </View>
+              </TouchableOpacity>
+            </View>
           </View>
         </ScrollView>
       </Animated.View>
 
       {showDocumentPreview && selectedDocument && (
         <Animated.View
-          style={[styles.documentPreviewOverlay, { opacity: documentPreviewOpacity }]}
+          style={[
+            styles.documentPreviewOverlay,
+            { opacity: documentPreviewOpacity },
+          ]}
         >
           <TouchableOpacity
             style={styles.documentPreviewBackground}
@@ -380,7 +884,12 @@ const EnrollmentStatusModal: React.FC<EnrollmentStatusModalProps> = ({
             activeOpacity={1}
           />
 
-          <Animated.View style={[styles.documentPreviewContent, { opacity: documentPreviewOpacity }]}>
+          <Animated.View
+            style={[
+              styles.documentPreviewContent,
+              { opacity: documentPreviewOpacity },
+            ]}
+          >
             <TouchableOpacity
               style={styles.documentPreviewCloseButton}
               onPress={handleCloseDocumentPreview}
@@ -394,11 +903,43 @@ const EnrollmentStatusModal: React.FC<EnrollmentStatusModalProps> = ({
               showsVerticalScrollIndicator={true}
             >
               <View style={styles.documentPreviewHeader}>
-                <Text style={styles.documentPreviewTitle}>Document Preview</Text>
-                <Text style={styles.documentPreviewSubtitle}>{selectedDocument.title}</Text>
+                <Text style={styles.documentPreviewTitle}>
+                  {selectedDocument.type === 'fingerprint_hand'
+                    ? 'Fingerprint Preview'
+                    : 'Document Preview'}
+                </Text>
+                <Text style={styles.documentPreviewSubtitle}>
+                  {selectedDocument.title}
+                </Text>
               </View>
 
-              {getDocumentImage() ? (
+              {selectedDocument.type === 'fingerprint_hand' &&
+              selectedDocument.hand ? (
+                <View style={styles.fingerprintGridContainer}>
+                  {(selectedDocument.hand === 'left'
+                    ? leftHandFingers
+                    : rightHandFingers
+                  ).map(fingerKey => {
+                    const template =
+                      enrollmentData.fingerTemplates?.[fingerKey];
+                    if (!template) return null;
+                    return (
+                      <View key={fingerKey} style={styles.fingerprintItem}>
+                        <Image
+                          source={{
+                            uri: `data:image/jpeg;base64,${template.base64Image}`,
+                          }}
+                          style={styles.fingerprintImage}
+                          resizeMode="contain"
+                        />
+                        <Text style={styles.fingerprintLabel}>
+                          {fingerKeyToTitle[fingerKey]}
+                        </Text>
+                      </View>
+                    );
+                  })}
+                </View>
+              ) : getDocumentImage() ? (
                 <Image
                   source={{ uri: getDocumentImage()! }}
                   style={styles.documentPreviewImage}
@@ -441,59 +982,88 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: colors.overlayBlack60,
+    backgroundColor: 'rgba(15, 23, 42, 0.75)',
   },
   modalContent: {
-    backgroundColor: colors.white,
-    borderRadius: 20,
-    width: screenWidth * 0.9,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    width: screenWidth * 0.92,
     maxHeight: '85%',
-    paddingBottom: 10,
+    paddingBottom: 12,
     zIndex: 10000,
-    elevation: 20,
-    shadowColor: colors.black,
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.3,
-    shadowRadius: 20,
+    elevation: 24,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 16 },
+    shadowOpacity: 0.25,
+    shadowRadius: 32,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.9)',
   },
   closeButton: {
     position: 'absolute',
-    top: 10,
-    right: 12,
-    padding: 8,
-    backgroundColor: colors.grayLight2,
-    borderRadius: 20,
+    top: 14,
+    right: 14,
+    width: 32,
+    height: 32,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
     zIndex: 20,
-    elevation: 5,
+    elevation: 6,
+    shadowColor: colors.black,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.08)',
   },
   closeIcon: {
-    fontSize: 18,
-    color: colors.darkText,
-    fontWeight: 'bold',
+    fontSize: 14,
+    color: '#64748B',
+    fontWeight: '600',
   },
   modalScrollView: {
-    paddingTop: 16,
+    paddingTop: 0,
   },
   gradientHeader: {
     padding: 16,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    paddingTop: 20,
+    paddingBottom: 28,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: -16,
+    overflow: 'hidden',
+  },
+  headerPattern: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    opacity: 0.1,
+    backgroundColor: 'transparent',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
   },
   checkmarkCircle: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: colors.green1,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 10,
-    elevation: 8,
-    shadowColor: colors.green1,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 8,
+    elevation: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    borderWidth: 3,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  pendingCircle: {
+    shadowColor: '#F59E0B',
   },
   checkmarkIcon: {
     fontSize: 28,
@@ -501,190 +1071,307 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   modalTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontFamily: fonts.bold,
     color: colors.white,
     marginBottom: 4,
     textAlign: 'center',
+    letterSpacing: 0.3,
+    textShadowColor: 'rgba(0, 0, 0, 0.2)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
   },
   modalSubtitle: {
     fontSize: 12,
-    color: colors.white80,
+    color: 'rgba(255, 255, 255, 0.9)',
     fontFamily: fonts.regular,
     textAlign: 'center',
+    lineHeight: 16,
+  },
+  headerBadge: {
+    marginTop: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  headerBadgeText: {
+    fontSize: 9,
+    fontFamily: fonts.bold,
+    color: colors.white,
+    letterSpacing: 1.2,
   },
   profileImageContainer: {
     alignItems: 'center',
-    marginVertical: 10,
+    marginTop: 6,
+    marginBottom: 12,
+  },
+  profileImageWrapper: {
+    position: 'relative',
+  },
+  profileImageRing: {
+    width: 76,
+    height: 76,
+    borderRadius: 38,
+    padding: 3,
+    elevation: 8,
+    shadowColor: '#6366F1',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+  },
+  profileImageInner: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 35,
+    backgroundColor: colors.white,
+    overflow: 'hidden',
   },
   profileImage: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: colors.grayLight2,
+    width: '100%',
+    height: '100%',
+    borderRadius: 35,
+    backgroundColor: '#F1F5F9',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  profileImageActual: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 35,
+  },
+  profileImagePlaceholder: {
+    fontSize: 32,
+  },
+  profileVerifiedBadge: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#22C55E',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: colors.purple1,
+    borderColor: colors.white,
+    elevation: 4,
+    shadowColor: '#22C55E',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
   },
-  profileImageActual: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    borderWidth: 2,
-    borderColor: colors.purple1,
-  },
-  profileImagePlaceholder: {
-    fontSize: 28,
+  profileVerifiedIcon: {
+    fontSize: 11,
+    color: colors.white,
+    fontWeight: 'bold',
   },
   registrationCard: {
-    marginHorizontal: 16,
-    marginBottom: 12,
-    backgroundColor: colors.bgLight,
-    borderRadius: 8,
-    padding: 10,
+    marginHorizontal: 14,
+    marginBottom: 10,
+    backgroundColor: colors.white,
+    borderRadius: 14,
+    padding: 14,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    elevation: 4,
+    shadowColor: '#6366F1',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
     borderWidth: 1,
-    borderColor: colors.borderGray,
+    borderColor: 'rgba(99, 102, 241, 0.08)',
   },
   registrationItem: {
-    marginBottom: 8,
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 2,
+  },
+  registrationDivider: {
+    width: 1,
+    backgroundColor: '#E2E8F0',
+    marginHorizontal: 14,
   },
   registrationLabel: {
-    fontSize: 10,
-    color: colors.placeholderGray,
-    fontFamily: fonts.regular,
-    marginBottom: 2,
+    fontSize: 9,
+    color: '#94A3B8',
+    fontFamily: fonts.bold,
+    marginBottom: 4,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
   },
   registrationValue: {
     fontSize: 14,
     fontFamily: fonts.bold,
-    color: colors.darkText,
+    color: '#1E293B',
+    textAlign: 'center',
   },
   detailsSection: {
-    marginHorizontal: 16,
-    marginBottom: 12,
-    backgroundColor: '#F5F5F5',
-    borderRadius: 8,
-    padding: 10,
+    marginHorizontal: 14,
+    marginBottom: 10,
+    backgroundColor: colors.white,
+    borderRadius: 14,
+    padding: 12,
+    elevation: 3,
+    shadowColor: '#64748B',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(100, 116, 139, 0.06)',
   },
   detailsSectionTitle: {
-    fontSize: 14,
+    fontSize: 13,
     fontFamily: fonts.bold,
     marginBottom: 8,
-    color: colors.darkText,
+    color: '#1E293B',
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
   },
   detailItem: {
     flexDirection: 'row',
     paddingVertical: 6,
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
+    borderBottomColor: '#F8FAFC',
+    alignItems: 'center',
   },
   detailLabel: {
     fontSize: 11,
-    color: colors.placeholderGray,
+    color: '#64748B',
     fontFamily: fonts.semiBold,
-    width: '40%',
+    width: '38%',
   },
   detailValueText: {
     fontSize: 11,
-    fontFamily: fonts.semiBold,
-    color: colors.darkText,
-    width: '60%',
+    fontFamily: fonts.bold,
+    color: '#1E293B',
+    width: '62%',
   },
   noDataText: {
-    fontSize: 13,
+    fontSize: 12,
     fontFamily: fonts.regular,
-    color: colors.placeholderGray,
+    color: '#94A3B8',
     textAlign: 'center',
     paddingVertical: 12,
   },
   documentsSection: {
-    marginHorizontal: 16,
-    marginBottom: 12,
+    marginHorizontal: 14,
+    marginBottom: 10,
   },
   documentCard: {
-    backgroundColor: colors.bgLight,
-    padding: 8,
-    borderRadius: 8,
+    backgroundColor: colors.white,
+    padding: 10,
+    borderRadius: 12,
     flexDirection: 'row',
-    marginBottom: 6,
-    borderWidth: 1,
-    borderColor: colors.borderGray,
+    marginBottom: 8,
     alignItems: 'center',
+    elevation: 3,
+    shadowColor: '#64748B',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(100, 116, 139, 0.06)',
   },
   documentIconContainer: {
-    width: 36,
-    height: 36,
-    borderRadius: 8,
-    backgroundColor: colors.white,
+    width: 40,
+    height: 40,
+    borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 10,
   },
   documentIcon: {
-    fontSize: 18,
+    fontSize: 20,
   },
   documentInfo: {
     flex: 1,
   },
   documentName: {
     fontSize: 12,
-    fontFamily: fonts.semiBold,
-    color: colors.darkText,
-    marginBottom: 1,
+    fontFamily: fonts.bold,
+    color: '#1E293B',
+    marginBottom: 2,
   },
   documentStatus: {
     fontSize: 10,
-    color: colors.green1,
+    color: '#22C55E',
     fontFamily: fonts.semiBold,
   },
   viewButton: {
-    padding: 4,
-    paddingHorizontal: 8,
+    borderRadius: 8,
+    overflow: 'hidden',
+    elevation: 2,
+    shadowColor: '#6366F1',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+  },
+  viewButtonGradient: {
+    paddingVertical: 7,
+    paddingHorizontal: 14,
+    borderRadius: 8,
   },
   viewButtonText: {
     fontSize: 11,
-    color: colors.blue600,
-    fontFamily: fonts.semiBold,
-    backgroundColor: colors.blueLightBg,
-    borderRadius: 4,
-    padding: 3,
+    color: colors.white,
+    fontFamily: fonts.bold,
   },
   actionButtonsContainer: {
-    marginHorizontal: 16,
-    marginTop: 8,
-    marginBottom: 12,
+    marginHorizontal: 14,
+    marginTop: 6,
+    marginBottom: 6,
     gap: 8,
   },
+  buttonRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
   enrollNewButton: {
-    borderRadius: 10,
+    flex: 1,
+    borderRadius: 12,
     overflow: 'hidden',
-    elevation: 4,
+    elevation: 6,
+    shadowColor: '#22C55E',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
   },
   enrollNewButtonGradient: {
-    paddingVertical: 12,
+    paddingVertical: 14,
     alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 6,
   },
   enrollNewButtonText: {
     color: colors.white,
-    fontSize: 14,
+    fontSize: 13,
     fontFamily: fonts.bold,
+    letterSpacing: 0.2,
   },
   modalCloseButton: {
-    borderRadius: 10,
+    flex: 1,
+    borderRadius: 12,
     overflow: 'hidden',
   },
   closeButtonPlain: {
-    paddingVertical: 12,
+    paddingVertical: 14,
     alignItems: 'center',
-    backgroundColor: colors.grayLight2,
-    borderWidth: 1,
-    borderColor: colors.borderGray,
-    borderRadius: 10,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    borderRadius: 12,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 6,
   },
   closeButtonPlainText: {
-    color: colors.darkText,
-    fontSize: 14,
+    color: '#64748B',
+    fontSize: 13,
     fontFamily: fonts.bold,
   },
   documentPreviewOverlay: {
@@ -703,86 +1390,234 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: colors.overlayBlack80,
+    backgroundColor: 'rgba(15, 23, 42, 0.85)',
   },
   documentPreviewContent: {
-    backgroundColor: colors.white,
-    borderRadius: 16,
-    width: '85%',
-    maxHeight: '70%',
+    backgroundColor: '#FAFBFC',
+    borderRadius: 20,
+    width: '88%',
+    maxHeight: '82%',
     zIndex: 10002,
     overflow: 'hidden',
+    elevation: 20,
+    shadowColor: '#1e293b',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.25,
+    shadowRadius: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.6)',
   },
   documentPreviewScrollView: {
     width: '100%',
+    flexGrow: 1,
   },
   documentPreviewScrollContent: {
-    padding: 12,
-    paddingTop: 36,
+    padding: 16,
+    paddingTop: 44,
+    paddingBottom: 24,
     alignItems: 'center',
+    flexGrow: 1,
   },
   documentPreviewHeader: {
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 16,
     width: '100%',
   },
   documentPreviewTitle: {
-    fontSize: 16,
+    fontSize: 18,
     fontFamily: fonts.bold,
-    color: colors.darkText,
-    marginBottom: 3,
+    color: '#1E293B',
+    marginBottom: 4,
   },
   documentPreviewSubtitle: {
-    fontSize: 12,
-    color: colors.midGray,
+    fontSize: 13,
+    color: '#64748B',
     fontFamily: fonts.semiBold,
   },
   documentPreviewImage: {
     width: '100%',
-    height: 250,
-    borderRadius: 10,
-    marginVertical: 10,
+    height: 280,
+    borderRadius: 14,
+    marginVertical: 12,
+    backgroundColor: '#F1F5F9',
   },
   documentPreviewCloseButton: {
     position: 'absolute',
-    top: 10,
-    right: 10,
-    padding: 6,
-    backgroundColor: colors.grayLight2,
+    top: 12,
+    right: 12,
+    width: 32,
+    height: 32,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
     borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
     zIndex: 10003,
+    elevation: 4,
+    shadowColor: colors.black,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.06)',
   },
   documentPreviewCloseIcon: {
-    fontSize: 16,
-    color: colors.darkText,
-    fontFamily: fonts.bold,
+    fontSize: 14,
+    color: '#64748B',
+    fontWeight: '600',
   },
   documentPreviewCloseButton2: {
-    backgroundColor: colors.green1,
-    padding: 8,
-    paddingHorizontal: 16,
-    borderRadius: 8,
+    backgroundColor: colors.purple1,
+    paddingVertical: 12,
+    paddingHorizontal: 32,
+    borderRadius: 12,
     alignSelf: 'center',
-    marginTop: 6,
+    marginTop: 12,
+    elevation: 4,
+    shadowColor: colors.purple1,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
   },
   documentPreviewCloseButtonText: {
     color: colors.white,
     fontSize: 14,
     fontFamily: fonts.bold,
+    letterSpacing: 0.3,
   },
   noImageContainer: {
     width: '100%',
-    height: 200,
-    borderRadius: 10,
-    backgroundColor: colors.grayLight2,
+    height: 220,
+    borderRadius: 14,
+    backgroundColor: '#F1F5F9',
     justifyContent: 'center',
     alignItems: 'center',
-    marginVertical: 10,
+    marginVertical: 12,
+    borderWidth: 2,
+    borderColor: '#E2E8F0',
+    borderStyle: 'dashed',
   },
   noImageText: {
     fontSize: 14,
-    color: colors.placeholderGray,
+    color: '#94A3B8',
     fontFamily: fonts.semiBold,
+  },
+  fingerprintGridContainer: {
+    width: '100%',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 14,
+    marginVertical: 12,
+    paddingBottom: 12,
+  },
+  fingerprintItem: {
+    width: '45%',
+    backgroundColor: colors.white,
+    borderRadius: 14,
+    padding: 12,
+    alignItems: 'center',
+    elevation: 3,
+    shadowColor: '#64748B',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(100, 116, 139, 0.08)',
+  },
+  fingerprintImage: {
+    width: '100%',
+    height: 110,
+    borderRadius: 10,
+    backgroundColor: '#F8FAFC',
+  },
+  fingerprintLabel: {
+    fontSize: 12,
+    fontFamily: fonts.bold,
+    color: '#334155',
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  errorContainer: {
+    backgroundColor: '#FEF2F2',
+    padding: 10,
+    borderRadius: 10,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  errorText: {
+    color: '#DC2626',
+    fontSize: 11,
+    fontFamily: fonts.semiBold,
+    flex: 1,
+    lineHeight: 16,
+  },
+  submitEnrollmentButton: {
+    borderRadius: 12,
+    overflow: 'hidden',
+    elevation: 6,
+    marginBottom: 8,
+    shadowColor: '#6366F1',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+  },
+  submitEnrollmentButtonGradient: {
+    paddingVertical: 14,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  submitEnrollmentButtonText: {
+    color: colors.white,
+    fontSize: 14,
+    fontFamily: fonts.bold,
+    letterSpacing: 0.3,
+  },
+  buttonDisabled: {
+    opacity: 0.5,
+  },
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  downloadReportButton: {
+    borderRadius: 12,
+    overflow: 'hidden',
+    elevation: 6,
+    marginBottom: 8,
+    shadowColor: '#1e3c72',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+  },
+  downloadReportButtonGradient: {
+    paddingVertical: 14,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  downloadReportContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  downloadReportIcon: {
+    fontSize: 18,
+  },
+  downloadReportButtonText: {
+    color: colors.white,
+    fontSize: 14,
+    fontFamily: fonts.bold,
+    letterSpacing: 0.3,
   },
 });
 
