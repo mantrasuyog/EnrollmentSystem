@@ -275,11 +275,6 @@ const Tech5FaceCaptureScreen: React.FC<Tech5FaceCaptureScreenProps> = ({
         face: captureResult.imageBase64,
         registration_id: registrationNumber,
       };
-
-      console.log('Sending verification payload:', {
-        ...payload,
-        face: payload.face.substring(0, 100) + '...',
-      });
       const response = await apiService.post(
         'http://10.65.21.96:8000/api/v1/verification/verify',
         payload,
@@ -287,10 +282,10 @@ const Tech5FaceCaptureScreen: React.FC<Tech5FaceCaptureScreenProps> = ({
 
       console.log('Verification response:', response.status, response.data);
 
-      if (response && response.status >= 200 && response.status < 300) {
-        Alert.alert('Success', 'Face verification completed successfully!');
+      if (response && response.status == 200) {
+        // Alert.alert('Success', 'Face verification completed successfully!');
         // Navigate to success or next screen
-        navigation?.navigate('VerificationResult', { registrationNumber });
+        navigation?.navigate('VerificationResult', { registrationNumber,responseData: response.data });
       }
     } catch (err: any) {
       let message = 'An error occurred during verification';
@@ -301,11 +296,12 @@ const Tech5FaceCaptureScreen: React.FC<Tech5FaceCaptureScreenProps> = ({
       }
       console.log('Verification error:', message);
       setError(message);
-      Alert.alert('Verification Failed', message);
+      // Alert.alert('Verification Failed', message);
     } finally {
       setIsVerifying(false);
     }
-  }, [captureResult?.imageBase64, registrationNumber, navigation]);  const renderModeButton = (mode: CaptureMode) => {
+  }, [captureResult?.imageBase64, registrationNumber, navigation]);  
+  const renderModeButton = (mode: CaptureMode) => {
     const isSelected = selectedMode === mode;
 
     return (

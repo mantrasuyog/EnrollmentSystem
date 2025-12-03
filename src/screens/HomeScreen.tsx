@@ -27,7 +27,7 @@ export type RootStackParamList = {
   DocumentUpload: undefined;
   Verification: undefined;
   VerificationScreen: undefined;
-  VerificationResult: { registrationNumber: string };
+  VerificationResult: { registrationNumber: string,responseData: any };
   Success: undefined;
   FaceAndFingerEnrollment: undefined;
   FaceRecongition: undefined;

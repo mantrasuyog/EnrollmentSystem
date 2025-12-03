@@ -20,7 +20,7 @@ import { apiService } from '../services/api.service';
 type RootStackParamList = {
   Home: undefined;
   Verification: undefined;
-  VerificationResult: { registrationNumber: string };
+  VerificationResult: { registrationNumber: string,responseData: any };
   FaceCapture: { registrationNumber?: string ;
     userDetails: {
       name: string;
@@ -86,21 +86,19 @@ const VerificationScreen: React.FC<Props> = ({ navigation }) => {
     try {
       console.log('registration number>>', registrationNumber);
       const { exists, userData } = await checkUser(registrationNumber);
-
+     console.log('userData>>',userData);
+     
       if (exists && userData) {
         // Extract only the required fields
         const { 
-          name, 
-          registration_id, 
-          center_code,
-          scanned_json 
+         user
         } = userData;
 
         const userDetails = {
-          name,
-          registrationId: registration_id,
-          centerCode: center_code,
-          scannedJson: scanned_json // Pass the entire scanned_json object
+          name: user?.name,
+          registrationId: user?.registration_id,
+          centerCode: user?.center_code,
+          scannedJson: user?.scanned_json // Pass the entire scanned_json object
         };
 
         // Navigate with user details including full scanned_json
