@@ -1,4 +1,5 @@
 import React, {useState, useCallback, useEffect, useRef} from 'react';
+import axios from 'axios';
 import { useSelector, useDispatch } from 'react-redux';
 import { setEnrolledImage, clearEnrolledImage } from '../redux/faceEnrollmentSlice';
 import { useNavigation } from '@react-navigation/native';
@@ -65,8 +66,11 @@ const Tech5FaceCaptureScreen: React.FC<Tech5FaceCaptureScreenProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [selectedMode, setSelectedMode] = useState<CaptureMode>('standard');
   const [showDetailModal, setShowDetailModal] = useState(false);
+  const [isCheckingLiveness, setIsCheckingLiveness] = useState(false);
+  const [livenessResult, setLivenessResult] = useState<any>(null);
   const [showExistingFaceModal, setShowExistingFaceModal] = useState(false);
   const [existingFaceImage, setExistingFaceImage] = useState<string | null>(null);
+  const [showSpoofModal, setShowSpoofModal] = useState(false);
 
   // Get existing face enrollment from Redux
   const existingEnrolledFace = useSelector(
@@ -149,6 +153,185 @@ const Tech5FaceCaptureScreen: React.FC<Tech5FaceCaptureScreenProps> = ({
       modalSlideAnim.setValue(100);
     }
   }, [showDetailModal]);
+
+  // Check liveness by sending image to liveness API
+  const checkLiveness = useCallback(async (imageBase64: string) => {
+    if (!imageBase64) {
+      Alert.alert('Error', 'No image available for liveness check');
+      return false;
+    }
+
+    setIsCheckingLiveness(true);
+    try {
+      const fullUrl = 'http://10.65.21.80:8080/check_liveness';
+      
+      if (__DEV__) {
+        console.log('Sending liveness check request to:', fullUrl);
+        console.log('Image base64 length:', imageBase64.length);
+      }
+
+      // Create FormData exactly like Postman does
+      const formData = new FormData();
+      
+      // In React Native, we can pass the base64 directly with uri
+      // The fetch API will handle the base64 encoding
+      formData.append('image', {
+        uri: `data:image/jpeg;base64,${imageBase64}`,
+        type: 'image/jpeg',
+        name: 'face_image.jpg',
+      } as any);
+
+      if (__DEV__) {
+        console.log('FormData created with base64 image');
+      }
+
+      // Send using fetch (same as Postman request structure)
+      const response = await fetch(fullUrl, {
+        method: 'POST',
+        body: formData,
+        // Don't set Content-Type header - fetch will set it with boundary automatically
+      });
+
+      // Check if response is ok
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Server error ${response.status}: ${errorText}`);
+      }
+
+      // Get response as text
+      const result = await response.text();
+
+      if (__DEV__) {
+        console.log('Liveness Check Result (raw):', result);
+      }
+
+      setLivenessResult(result);
+
+      // Parse the result to extract probability
+      let displayMessage = result;
+      try {
+        // Try parsing as JSON first
+        const parsedResult = JSON.parse(result);
+        if (__DEV__) {
+          console.log('Parsed JSON:', parsedResult);
+        }
+        
+        // Check for probability field in various formats
+        let probability = 
+          parsedResult.probability || 
+          parsedResult.Probability || 
+          parsedResult.liveness || 
+          parsedResult.Liveness ||
+          parsedResult.score ||
+          parsedResult.Score;
+        
+        if (probability !== undefined) {
+          // Handle scientific notation by converting to number
+          if (typeof probability === 'string') {
+            probability = parseFloat(probability);
+          }
+          
+          if (__DEV__) {
+            console.log('Extracted probability:', probability);
+          }
+          
+          const percentage = (probability * 100).toFixed(4);
+          displayMessage = `Liveness Probability: ${percentage}%\n\nConfidence Score: ${probability}`;
+        } else {
+          // If no probability field found, show the whole JSON
+          displayMessage = JSON.stringify(parsedResult, null, 2);
+        }
+      } catch (parseError) {
+        // Not JSON, check if it's a plain number
+        const cleanResult = result.trim();
+        const probability = parseFloat(cleanResult);
+        
+        if (__DEV__) {
+          console.log('Trying to parse as plain number:', cleanResult, 'Result:', probability);
+        }
+        
+        if (!isNaN(probability)) {
+          if (probability >= 0 && probability <= 1) {
+            const percentage = (probability * 100).toFixed(4);
+            displayMessage = `Liveness Probability: ${percentage}%`;
+          } else if (probability > 1 && probability < 100) {
+            displayMessage = `Liveness Probability: ${probability.toFixed(2)}%`;
+          }
+        }
+      }
+
+      if (__DEV__) {
+        console.log('Final display message:', displayMessage);
+      }
+
+      // Extract probability to check if it's below 0.5
+      let extractedProbability: number | null = null;
+      try {
+        const parsedResult = JSON.parse(result);
+        let probability = 
+          parsedResult.probability || 
+          parsedResult.Probability || 
+          parsedResult.liveness || 
+          parsedResult.Liveness ||
+          parsedResult.score ||
+          parsedResult.Score;
+        
+        if (probability !== undefined) {
+          if (typeof probability === 'string') {
+            probability = parseFloat(probability);
+          }
+          extractedProbability = probability;
+        }
+      } catch (e) {
+        const cleanResult = result.trim();
+        const probability = parseFloat(cleanResult);
+        if (!isNaN(probability)) {
+          extractedProbability = probability;
+        }
+      }
+
+      if (__DEV__) {
+        console.log('Extracted probability:', extractedProbability);
+        console.log('Liveness result:', displayMessage);
+      }
+
+      // Check if spoof image detected (probability < 0.5)
+      if (extractedProbability !== null && extractedProbability < 0.5) {
+        setShowSpoofModal(true);
+        return false;
+      }
+
+      // If probability >= 0.5, continue with normal flow (no alert, just proceed)
+      return true;
+    } catch (err: any) {
+      if (__DEV__) {
+        console.error('Liveness Check Full Error:', {
+          message: err.message,
+          code: err.code,
+          name: err.name,
+        });
+      }
+
+      // Provide more detailed error messages
+      let errorMsg = 'Liveness check failed';
+      
+      if (err.message) {
+        errorMsg = err.message;
+      } else if (err.code === 'ECONNREFUSED') {
+        errorMsg = 'Connection refused. The server may not be running.';
+      } else if (err.code === 'ENOTFOUND' || err.code === 'ERR_NETWORK') {
+        errorMsg = 'Network error. Cannot reach the server at http://10.65.21.80:8080';
+      } else {
+        errorMsg = 'Unknown error occurred';
+      }
+
+      console.error('Liveness Check Error:', errorMsg);
+      Alert.alert('Liveness Check Failed', errorMsg);
+      return false;
+    } finally {
+      setIsCheckingLiveness(false);
+    }
+  }, []);
 
   const handleCapture = useCallback(async () => {
     if (Platform.OS !== 'android') {
@@ -561,6 +744,57 @@ const Tech5FaceCaptureScreen: React.FC<Tech5FaceCaptureScreenProps> = ({
     );
   };
 
+  // Modal for spoof image detection
+  const renderSpoofModal = () => {
+    return (
+      <Modal
+        visible={showSpoofModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowSpoofModal(false)}>
+        <View style={styles.modalOverlay}>
+          <Animated.View style={styles.spoofModalContainer}>
+            {/* Modal Header */}
+            <View style={styles.spoofModalHeader}>
+              <View style={styles.spoofIconCircle}>
+                <Text style={styles.spoofIcon}>⚠️</Text>
+              </View>
+              <Text style={styles.spoofTitle}>Spoof Image Detected</Text>
+              <Text style={styles.spoofSubtitle}>
+                This image appears to be a spoof or not a live face. Please capture a fresh image.
+              </Text>
+            </View>
+
+            {/* Action Buttons */}
+            <View style={styles.spoofActions}>
+              {/* Retake Photo Button */}
+              <TouchableOpacity
+                style={styles.retakePhotoButton}
+                onPress={() => {
+                  setShowSpoofModal(false);
+                  setCaptureResult(null);
+                  // Restart capture
+                  handleCapture();
+                }}
+                activeOpacity={0.85}>
+                <Text style={styles.retakePhotoIcon}>📷</Text>
+                <Text style={styles.retakePhotoText}>Retake Photo</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Cancel Button */}
+            <TouchableOpacity
+              style={styles.cancelSpoofButton}
+              onPress={() => setShowSpoofModal(false)}
+              activeOpacity={0.85}>
+              <Text style={styles.cancelSpoofText}>Cancel</Text>
+            </TouchableOpacity>
+          </Animated.View>
+        </View>
+      </Modal>
+    );
+  };
+
   const renderCaptureResult = () => {
     if (!captureResult || !captureResult.success) return null;
 
@@ -741,8 +975,21 @@ const Tech5FaceCaptureScreen: React.FC<Tech5FaceCaptureScreenProps> = ({
         {/* Continue Button */}
         {captureResult && (
           <TouchableOpacity
-            style={styles.continueButton}
-            onPress={() => {
+            style={[
+              styles.continueButton,
+              isCheckingLiveness && styles.continueButtonDisabled,
+            ]}
+            onPress={async () => {
+              // Check liveness before continuing
+              if (!captureResult.imageBase64) {
+                Alert.alert('Error', 'No image available');
+                return;
+              }
+              const livenessOk = await checkLiveness(captureResult.imageBase64);
+              if (!livenessOk) {
+                return;
+              }
+
               dispatch(clearEnrolledImage());
               if (captureResult.imageBase64) {
                 dispatch(setEnrolledImage(captureResult.imageBase64));
@@ -754,9 +1001,19 @@ const Tech5FaceCaptureScreen: React.FC<Tech5FaceCaptureScreenProps> = ({
                 navigation.goBack();
               }
             }}
+            disabled={isCheckingLiveness}
             activeOpacity={0.85}>
-            <Text style={styles.continueButtonText}>Continue</Text>
-            <Text style={styles.continueButtonIcon}>→</Text>
+            {isCheckingLiveness ? (
+              <View style={styles.continueButtonContent}>
+                <ActivityIndicator color="#fff" size="small" />
+                <Text style={styles.continueButtonText}>Checking Liveness...</Text>
+              </View>
+            ) : (
+              <View style={styles.continueButtonContent}>
+                <Text style={styles.continueButtonText}>Continue</Text>
+                <Text style={styles.continueButtonIcon}>→</Text>
+              </View>
+            )}
           </TouchableOpacity>
         )}
       </ScrollView>
@@ -766,6 +1023,9 @@ const Tech5FaceCaptureScreen: React.FC<Tech5FaceCaptureScreenProps> = ({
 
       {/* Existing Face Modal */}
       {renderExistingFaceModal()}
+
+      {/* Spoof Detection Modal */}
+      {renderSpoofModal()}
     </SafeAreaView>
   );
 };
@@ -1157,6 +1417,15 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontFamily: FONTS.bold,
   },
+  continueButtonDisabled: {
+    backgroundColor: '#94A3B8',
+    opacity: 0.7,
+  },
+  continueButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   // Modal Styles
   modalOverlay: {
     flex: 1,
@@ -1480,6 +1749,83 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   cancelModalText: {
+    fontSize: 14,
+    fontFamily: FONTS.semiBold,
+    color: '#64748B',
+  },
+  // Spoof Modal Styles
+  spoofModalContainer: {
+    marginHorizontal: 20,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 24,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 4},
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 5,
+  },
+  spoofModalHeader: {
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  spoofIconCircle: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    backgroundColor: '#FEE2E2',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  spoofIcon: {
+    fontSize: 36,
+  },
+  spoofTitle: {
+    fontSize: 18,
+    fontFamily: FONTS.bold,
+    color: '#DC2626',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  spoofSubtitle: {
+    fontSize: 13,
+    fontFamily: FONTS.regular,
+    color: '#64748B',
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  spoofActions: {
+    marginBottom: 16,
+  },
+  retakePhotoButton: {
+    backgroundColor: '#F97316',
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    shadowColor: '#F97316',
+    shadowOffset: {width: 0, height: 2},
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  retakePhotoIcon: {
+    fontSize: 18,
+  },
+  retakePhotoText: {
+    fontSize: 15,
+    fontFamily: FONTS.bold,
+    color: '#FFFFFF',
+  },
+  cancelSpoofButton: {
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  cancelSpoofText: {
     fontSize: 14,
     fontFamily: FONTS.semiBold,
     color: '#64748B',
