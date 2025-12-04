@@ -28,6 +28,10 @@ android {
 
         manifestPlaceholders = [ usesCleartextTraffic: "true" ]
 
+        // Only include arm64-v8a native libraries - reduces APK size significantly
+        ndk {
+            abiFilters "arm64-v8a"
+        }
     }
     signingConfigs {
         debug {
@@ -42,12 +46,10 @@ android {
         debug {
             signingConfig signingConfigs.debug
             debuggable true
-
             minifyEnabled false
             shrinkResources false
         }
         release {
-
             signingConfig signingConfigs.debug
             debuggable false
             minifyEnabled enableProguardInReleaseBuilds
@@ -56,25 +58,16 @@ android {
         }
     }
 
-    splits {
-        abi {
-            reset()
-            enable true
-            universalApk false  // Set to true if you also want a universal APK
-            include "armeabi-v7a", "arm64-v8a"
-        }
-    }
-
     packagingOptions {
-        pickFirst 'lib/x86/libc++_shared.so'
-        pickFirst 'lib/x86_64/libc++_shared.so'
-        pickFirst 'lib/armeabi-v7a/libc++_shared.so'
         pickFirst 'lib/arm64-v8a/libc++_shared.so'
         exclude 'META-INF/DEPENDENCIES'
         exclude 'META-INF/LICENSE'
         exclude 'META-INF/LICENSE.txt'
         exclude 'META-INF/NOTICE'
         exclude 'META-INF/NOTICE.txt'
+        exclude 'META-INF/*.kotlin_module'
+        exclude 'META-INF/proguard/androidx-*.pro'
+        exclude 'META-INF/com.android.tools/proguard/androidx-*.pro'
     }
 }
 

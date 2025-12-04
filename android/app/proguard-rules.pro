@@ -60,3 +60,7 @@
 -optimizations !code/simplification/arithmetic,!code/simplification/cast,!field/*,!class/merging/*
 -optimizationpasses 5
 -allowaccessmodification
+
+# Don't warn about missing classes
+-dontwarn **
+

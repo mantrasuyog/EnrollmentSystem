@@ -324,6 +324,53 @@ const FingerCaptureScreen: React.FC<FingerCaptureScreenProps> = ({
         getNfiq2Quality: false,
       });
 
+      // Log the complete capture result format
+      console.log('[FingerCapture] ========== CAPTURE RESULT FORMAT ==========');
+      console.log('[FingerCapture] Mode:', selectedMode);
+      console.log('[FingerCapture] Success:', result.success);
+      console.log('[FingerCapture] Total Fingers Captured:', result.fingers?.length || 0);
+
+      if (result.fingers && result.fingers.length > 0) {
+        console.log('[FingerCapture] ----- FINGER DATA DETAILS -----',);
+        result.fingers.forEach((finger, index) => {
+          console.log(`[FingerCapture] Finger ${index + 1}:`);
+          console.log(`  - Position Code: ${finger.position}`);
+          console.log(`  - Position Name: ${Tech5Finger.getFingerName(finger.position)}`);
+          console.log(`  - Quality: ${finger.quality}`);
+          console.log(`  - NIST Quality: ${finger.nistQuality}`);
+          console.log(`  - NIST2 Quality: ${finger.nist2Quality}`);
+          console.log(`  - Minutiaes Number: ${finger.minutiaesNumber}`);
+          console.log(`  - Primary Image Type: ${finger.primaryImageType}`);
+          console.log(`  - Primary Image Base64 Length: ${finger.primaryImageBase64?.length || 0} chars`);
+          console.log(`  - Primary Image Base64 (first 100 chars): ${finger.primaryImageBase64?.substring(0, 100)}...`);
+          console.log(`  - Display Image Type: ${finger.displayImageType || 'N/A'}`);
+          console.log(`  - Display Image Base64 Length: ${finger.displayImageBase64?.length || 0} chars`);
+        });
+      }
+
+      if (result.slapImages && result.slapImages.length > 0) {
+        console.log('[FingerCapture] ----- SLAP IMAGES -----');
+        result.slapImages.forEach((slap, index) => {
+          console.log(`[FingerCapture] Slap Image ${index + 1}:`);
+          console.log(`  - Position: ${slap.position}`);
+          console.log(`  - Image Type: ${slap.imageType}`);
+          console.log(`  - Image Base64 Length: ${slap.imageBase64?.length || 0} chars`);
+        });
+      }
+
+      if (result.livenessScores && result.livenessScores.length > 0) {
+        console.log('[FingerCapture] ----- LIVENESS SCORES -----');
+        result.livenessScores.forEach((liveness, index) => {
+          console.log(`[FingerCapture] Liveness ${index + 1}:`);
+          console.log(`  - Position Code: ${liveness.positionCode}`);
+          console.log(`  - Score: ${liveness.score}`);
+        });
+      }
+
+      console.log('[FingerCapture] ----- RAW RESULT OBJECT -----');
+      console.log('[FingerCapture] Full Result:', JSON.stringify(result, null, 2));
+      console.log('[FingerCapture] =============================================');
+
       const captureData: FingerCaptureData = {
         fingers: result.fingers || [],
         capturedAt: new Date().toISOString(),

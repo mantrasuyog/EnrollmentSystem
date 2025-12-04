@@ -20,21 +20,16 @@ import type { RootStackParamList } from './src/screens/HomeScreen';
 import { store, persistor } from './src/redux/store';
 import { initDatabase } from './src/services/database.service';
 
-// Initialize SQLite database
 initDatabase();
-
-
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 function App() {
   const isDarkMode = useColorScheme() === 'dark';
 
-  // Flush persistor when app goes to background to ensure data is saved
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (nextAppState) => {
       if (nextAppState === 'background' || nextAppState === 'inactive') {
-        // Force flush all pending state to AsyncStorage
         persistor.flush();
         if (__DEV__) {
           console.log('App going to background - flushing persistor');
