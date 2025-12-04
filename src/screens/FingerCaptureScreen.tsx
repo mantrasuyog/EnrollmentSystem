@@ -33,6 +33,11 @@ import {
   clearFingerEnrollment,
   setFingerTemplatesFromCapture,
 } from '../redux/fingerEnrollmentSlice';
+import { setUserEnrolled, resetUserEnrollment } from '../redux/userEnrollmentSlice';
+import apiService from '../services/api.service';
+import ApiResponseDialog from '../components/ApiResponseDialog';
+import CommonAlertModal from '../components/CommonAlertModal';
+import EnrollmentRequiredModal from '../components/EnrollmentRequiredModal';
 
 interface FingerCaptureScreenProps {
   navigation?: any;
@@ -42,11 +47,11 @@ interface FingerCaptureScreenProps {
       onCaptureComplete?: (result: CaptureResult) => void;
     };
   };
+  onProceedToNext?: () => void;
 }
 
 const {width: SCREEN_WIDTH, height: SCREEN_HEIGHT} = Dimensions.get('window');
 
-// Font family constants
 const FONTS = {
   bold: 'Sen-Bold',
   semiBold: 'Sen-SemiBold',
@@ -57,6 +62,7 @@ const FONTS = {
 const FingerCaptureScreen: React.FC<FingerCaptureScreenProps> = ({
   navigation,
   route,
+  onProceedToNext,
 }) => {
   const dispatch = useDispatch();
   const fingerEnrollment = useSelector(
@@ -67,12 +73,38 @@ const FingerCaptureScreen: React.FC<FingerCaptureScreenProps> = ({
   const fingerTemplates = useSelector(selectFingerTemplates);
   const fingerTemplatesForApi = useSelector(selectFingerTemplatesForApi);
 
+  // Get face enrolled image and scan data for API calls
+  const existingEnrolledImage = useSelector((state: RootState) => state.faceEnrollment.enrolledImageBase64) as string | null;
+  const scanData = useSelector((state: RootState) => state.scan.scans[0]);
+
   const [isCapturing, setIsCapturing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedMode, setSelectedMode] = useState<CaptureMode>('left_slap');
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [showResetModal, setShowResetModal] = useState(false);
   const [showIncompleteModal, setShowIncompleteModal] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showEnrollmentRequiredModal, setShowEnrollmentRequiredModal] = useState(false);
+  const [apiResponse, setApiResponse] = useState<{
+    visible: boolean;
+    type: 'success' | 'error';
+    message: string;
+  }>({
+    visible: false,
+    type: 'success',
+    message: '',
+  });
+  const [alertModal, setAlertModal] = useState<{
+    visible: boolean;
+    title: string;
+    message: string;
+  }>({
+    visible: false,
+    title: '',
+    message: '',
+  });
+  const [showLowQualityModal, setShowLowQualityModal] = useState(false);
+  const [lowQualityFingers, setLowQualityFingers] = useState<FingerData[]>([]);
 
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -83,6 +115,7 @@ const FingerCaptureScreen: React.FC<FingerCaptureScreenProps> = ({
   const modalAnim = useRef(new Animated.Value(0)).current;
   const resetModalAnim = useRef(new Animated.Value(0)).current;
   const incompleteModalAnim = useRef(new Animated.Value(0)).current;
+  const lowQualityModalAnim = useRef(new Animated.Value(0)).current;
 
   const captureConfig = route?.params?.config || {};
   const onCaptureComplete = route?.params?.onCaptureComplete;
@@ -127,6 +160,22 @@ const FingerCaptureScreen: React.FC<FingerCaptureScreenProps> = ({
 
   // Pulse animation for capture button
   useEffect(() => {
+    // Check if the selected mode is already captured
+    const isModeCaptured = (): boolean => {
+      switch (selectedMode) {
+        case 'left_slap':
+          return !!fingerEnrollment.leftSlap;
+        case 'left_thumb':
+          return !!fingerEnrollment.leftThumb;
+        case 'right_slap':
+          return !!fingerEnrollment.rightSlap;
+        case 'right_thumb':
+          return !!fingerEnrollment.rightThumb;
+        default:
+          return false;
+      }
+    };
+
     const pulse = Animated.loop(
       Animated.sequence([
         Animated.timing(pulseAnim, {
@@ -141,11 +190,11 @@ const FingerCaptureScreen: React.FC<FingerCaptureScreenProps> = ({
         }),
       ]),
     );
-    if (!isCapturing && !isCaptured(selectedMode)) {
+    if (!isCapturing && !isModeCaptured()) {
       pulse.start();
     }
     return () => pulse.stop();
-  }, [isCapturing, selectedMode]);
+  }, [isCapturing, selectedMode, fingerEnrollment]);
 
   // Modal animation
   useEffect(() => {
@@ -188,6 +237,35 @@ const FingerCaptureScreen: React.FC<FingerCaptureScreenProps> = ({
       incompleteModalAnim.setValue(0);
     }
   }, [showIncompleteModal]);
+
+  // Low quality modal animation
+  useEffect(() => {
+    if (showLowQualityModal) {
+      Animated.spring(lowQualityModalAnim, {
+        toValue: 1,
+        friction: 8,
+        tension: 40,
+        useNativeDriver: true,
+      }).start();
+    } else {
+      lowQualityModalAnim.setValue(0);
+    }
+  }, [showLowQualityModal]);
+
+  // Helper function to check if a finger has low quality (below 30 or N/A)
+  const checkLowQualityFingers = useCallback((fingers: FingerData[]): FingerData[] => {
+    return fingers.filter(finger => {
+      const quality = finger.quality;
+      // Check if quality is undefined, null, or below 30
+      if (quality === undefined || quality === null) {
+        return true; // N/A case
+      }
+      if (typeof quality === 'number' && quality < 30) {
+        return true; // Below 30 case
+      }
+      return false;
+    });
+  }, []);
 
   const handleCapture = useCallback(async () => {
     if (Platform.OS !== 'android') {
@@ -257,6 +335,13 @@ const FingerCaptureScreen: React.FC<FingerCaptureScreenProps> = ({
       // Store individual finger templates with title and base64
       if (result.fingers && result.fingers.length > 0) {
         dispatch(setFingerTemplatesFromCapture(result.fingers));
+
+        // Check for low quality fingers
+        const lowQuality = checkLowQualityFingers(result.fingers);
+        if (lowQuality.length > 0) {
+          setLowQualityFingers(lowQuality);
+          setShowLowQualityModal(true);
+        }
       }
 
       console.log('[FingerCapture] Capture successful for:', selectedMode);
@@ -271,7 +356,7 @@ const FingerCaptureScreen: React.FC<FingerCaptureScreenProps> = ({
     } finally {
       setIsCapturing(false);
     }
-  }, [selectedMode, captureConfig, dispatch]);
+  }, [selectedMode, captureConfig, dispatch, checkLowQualityFingers]);
 
   const handleContinue = useCallback(() => {
     if (!allFingersEnrolled) {
@@ -288,21 +373,138 @@ const FingerCaptureScreen: React.FC<FingerCaptureScreenProps> = ({
     setShowConfirmModal(true);
   }, [allFingersEnrolled, fingerTemplates, fingerTemplatesForApi]);
 
-  const handleConfirmProceed = useCallback(() => {
-    setShowConfirmModal(false);
-    if (onCaptureComplete && fingerEnrollment) {
-      const allFingers: FingerData[] = [
-        ...(fingerEnrollment.leftSlap?.fingers || []),
-        ...(fingerEnrollment.leftThumb?.fingers || []),
-        ...(fingerEnrollment.rightSlap?.fingers || []),
-        ...(fingerEnrollment.rightThumb?.fingers || []),
-      ];
-      onCaptureComplete({fingers: allFingers, success: true});
+  const handleConfirmProceed = useCallback(async () => {
+    // Validate face enrollment
+    if (!existingEnrolledImage) {
+      setShowConfirmModal(false);
+      setShowEnrollmentRequiredModal(true);
+      return;
     }
-    if (navigation) {
-      navigation.goBack();
+
+    // Validate scan data
+    if (!scanData) {
+      setShowConfirmModal(false);
+      setAlertModal({
+        visible: true,
+        title: 'Error',
+        message: 'No scan data found. Please complete document scanning first.',
+      });
+      return;
     }
-  }, [fingerEnrollment, onCaptureComplete, navigation]);
+
+    try {
+      setIsSubmitting(true);
+
+      // Parse scanned JSON
+      let parsedScannedJson;
+      try {
+        parsedScannedJson = typeof scanData.scanned_json === 'string'
+          ? JSON.parse(scanData.scanned_json)
+          : scanData.scanned_json;
+      } catch (e) {
+        parsedScannedJson = [];
+      }
+
+      let scannedJsonObject: Record<string, any> = {};
+      if (Array.isArray(parsedScannedJson)) {
+        parsedScannedJson.forEach((item: any) => {
+          if (item.name && item.value !== undefined) {
+            scannedJsonObject[item.name] = item.value;
+          }
+        });
+      } else if (typeof parsedScannedJson === 'object') {
+        scannedJsonObject = parsedScannedJson;
+      }
+
+      // Clean name
+      let cleanedName = scanData.Name || '';
+      if (cleanedName.startsWith('Name\n')) {
+        cleanedName = cleanedName.replace('Name\n', '').trim();
+      } else if (cleanedName.startsWith('Name')) {
+        cleanedName = cleanedName.replace('Name', '').trim();
+      }
+
+      // First API call - User Registration
+      const apiRequestBody = {
+        center_code: scanData.Centre_Code,
+        document_image: scanData.Document_Image,
+        name: cleanedName,
+        portrait_image: scanData.Portrait_Image,
+        registration_id: scanData.Registration_Number,
+        scanned_json: scannedJsonObject,
+      };
+
+      await apiService.post('/users/', apiRequestBody);
+
+      // Second API call - Biometric Enrollment
+      const templateEnrollmentBody = {
+        biometric_data: {
+          biometrics: {
+            face: existingEnrolledImage,
+            fingerprints: fingerTemplatesForApi,
+          },
+        },
+        registration_id: scanData.Registration_Number,
+      };
+
+      console.log('biometric_data request body:', JSON.stringify(templateEnrollmentBody, null, 2));
+
+      await apiService.post('/biometric/enroll', templateEnrollmentBody);
+
+      // Clear existing enrollment status first, then set new value
+      dispatch(resetUserEnrollment());
+      dispatch(setUserEnrolled(true));
+
+      // Close the confirmation modal after successful API calls
+      setShowConfirmModal(false);
+
+      // Call onCaptureComplete if provided (for standalone navigation use)
+      if (onCaptureComplete && fingerEnrollment) {
+        const allFingers: FingerData[] = [
+          ...(fingerEnrollment.leftSlap?.fingers || []),
+          ...(fingerEnrollment.leftThumb?.fingers || []),
+          ...(fingerEnrollment.rightSlap?.fingers || []),
+          ...(fingerEnrollment.rightThumb?.fingers || []),
+        ];
+        onCaptureComplete({fingers: allFingers, success: true} as CaptureResult);
+      }
+
+      // Move to Success step in Dashboard (step 3)
+      if (onProceedToNext) {
+        onProceedToNext();
+      } else if (navigation) {
+        navigation.goBack();
+      }
+    } catch (error: any) {
+      // Close the confirmation modal on error
+      setShowConfirmModal(false);
+
+      let errorMessage = 'Network error. Please check your connection and try again.';
+
+      if (error.response?.data) {
+        const errorData = error.response.data;
+        if (errorData.detail) {
+          errorMessage = errorData.detail;
+        } else if (errorData.message) {
+          errorMessage = errorData.message;
+        } else if (errorData.error) {
+          errorMessage = errorData.error;
+        } else if (typeof errorData === 'string') {
+          errorMessage = errorData;
+        }
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
+      setApiResponse({
+        visible: true,
+        type: 'error',
+        message: errorMessage,
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [fingerEnrollment, onCaptureComplete, navigation, existingEnrolledImage, scanData, fingerTemplatesForApi, onProceedToNext, dispatch]);
 
   const handleReset = useCallback(() => {
     setShowResetModal(true);
@@ -312,6 +514,26 @@ const FingerCaptureScreen: React.FC<FingerCaptureScreenProps> = ({
     dispatch(clearFingerEnrollment());
     setShowResetModal(false);
   }, [dispatch]);
+
+  const closeEnrollmentRequiredModal = useCallback(() => {
+    setShowEnrollmentRequiredModal(false);
+  }, []);
+
+  const handleApiResponseClose = useCallback(() => {
+    setApiResponse({
+      visible: false,
+      type: 'success',
+      message: '',
+    });
+  }, []);
+
+  const handleAlertModalClose = useCallback(() => {
+    setAlertModal({
+      visible: false,
+      title: '',
+      message: '',
+    });
+  }, []);
 
   const getModeLabel = (mode: CaptureMode): string => {
     switch (mode) {
@@ -621,16 +843,25 @@ const FingerCaptureScreen: React.FC<FingerCaptureScreenProps> = ({
               <TouchableOpacity
                 style={styles.modalButtonCancel}
                 onPress={() => setShowConfirmModal(false)}
-                activeOpacity={0.8}>
+                activeOpacity={0.8}
+                disabled={isSubmitting}>
                 <Text style={styles.modalButtonCancelText}>Re-capture</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={styles.modalButtonConfirm}
+                style={[styles.modalButtonConfirm, isSubmitting && {opacity: 0.7}]}
                 onPress={handleConfirmProceed}
-                activeOpacity={0.8}>
-                <Text style={styles.modalButtonConfirmText}>
-                  Confirm & Proceed
-                </Text>
+                activeOpacity={0.8}
+                disabled={isSubmitting}>
+                {isSubmitting ? (
+                  <View style={{flexDirection: 'row', alignItems: 'center', gap: 8}}>
+                    <ActivityIndicator color="#FFFFFF" size="small" />
+                    <Text style={styles.modalButtonConfirmText}>Submitting...</Text>
+                  </View>
+                ) : (
+                  <Text style={styles.modalButtonConfirmText}>
+                    Confirm & Proceed
+                  </Text>
+                )}
               </TouchableOpacity>
             </View>
           </Animated.View>
@@ -860,6 +1091,97 @@ const FingerCaptureScreen: React.FC<FingerCaptureScreenProps> = ({
           </Animated.View>
         </View>
       </Modal>
+
+      {/* Low Quality Recapture Modal */}
+      <Modal
+        visible={showLowQualityModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowLowQualityModal(false)}>
+        <View style={styles.modalOverlay}>
+          <Animated.View
+            style={[
+              styles.lowQualityModalContainer,
+              {
+                opacity: lowQualityModalAnim,
+                transform: [{scale: lowQualityModalAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0.9, 1],
+                })}],
+              },
+            ]}>
+            <View style={styles.lowQualityModalHeader}>
+              <View style={styles.lowQualityIconCircle}>
+                <Text style={styles.lowQualityIcon}>!</Text>
+              </View>
+              <Text style={styles.lowQualityModalTitle}>Low Quality Detected</Text>
+              <Text style={styles.lowQualityModalSubtitle}>
+                {lowQualityFingers.length === 1
+                  ? 'One finger has low quality. Please recapture for better results.'
+                  : `${lowQualityFingers.length} fingers have low quality. Please recapture for better results.`}
+              </Text>
+            </View>
+
+            <View style={styles.lowQualityFingersContainer}>
+              <Text style={styles.lowQualityFingersLabel}>Affected Fingers:</Text>
+              <View style={styles.lowQualityFingersList}>
+                {lowQualityFingers.map((finger, index) => (
+                  <View key={finger.position || index} style={styles.lowQualityFingerItem}>
+                    <View style={styles.lowQualityFingerIcon}>
+                      <Text style={styles.lowQualityFingerIconText}>👆</Text>
+                    </View>
+                    <View style={styles.lowQualityFingerInfo}>
+                      <Text style={styles.lowQualityFingerName}>
+                        {Tech5Finger.getFingerName(finger.position)}
+                      </Text>
+                      <Text style={styles.lowQualityFingerQuality}>
+                        Quality: {finger.quality !== undefined && finger.quality !== null ? finger.quality : 'N/A'}
+                      </Text>
+                    </View>
+                    <View style={styles.lowQualityBadge}>
+                      <Text style={styles.lowQualityBadgeText}>Low</Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            </View>
+
+            <View style={styles.lowQualityModalButtons}>
+              <TouchableOpacity
+                style={styles.lowQualityButtonRecapture}
+                onPress={() => {
+                  setShowLowQualityModal(false);
+                  handleCapture();
+                }}
+                activeOpacity={0.8}>
+                <Text style={styles.lowQualityButtonRecaptureText}>Recapture</Text>
+              </TouchableOpacity>
+            </View>
+          </Animated.View>
+        </View>
+      </Modal>
+
+      {/* Enrollment Required Modal */}
+      <EnrollmentRequiredModal
+        visible={showEnrollmentRequiredModal}
+        onClose={closeEnrollmentRequiredModal}
+      />
+
+      {/* API Response Dialog */}
+      <ApiResponseDialog
+        visible={apiResponse.visible}
+        type={apiResponse.type}
+        message={apiResponse.message}
+        onClose={handleApiResponseClose}
+      />
+
+      {/* Common Alert Modal */}
+      <CommonAlertModal
+        visible={alertModal.visible}
+        title={alertModal.title}
+        message={alertModal.message}
+        onClose={handleAlertModalClose}
+      />
     </SafeAreaView>
   );
 };
@@ -867,95 +1189,97 @@ const FingerCaptureScreen: React.FC<FingerCaptureScreenProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    marginTop: Platform.OS === 'android' ? -30 : 0,
     backgroundColor: '#F8FAFC',
   },
   scrollContent: {
-    padding: 20,
-    paddingBottom: 40,
+    padding: 16,
+    paddingTop: 8,
+    paddingBottom: 20,
   },
   // Header Styles
   header: {
     alignItems: 'center',
-    marginBottom: 24,
-    paddingTop: 10,
+    marginBottom: 10,
+    paddingTop: 0,
   },
   headerIconContainer: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
     backgroundColor: '#EEF2FF',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 8,
     shadowColor: '#6366F1',
-    shadowOffset: {width: 0, height: 4},
+    shadowOffset: {width: 0, height: 2},
     shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 4,
+    shadowRadius: 8,
+    elevation: 3,
   },
   headerIcon: {
-    fontSize: 32,
+    fontSize: 24,
   },
   title: {
-    fontSize: 26,
+    fontSize: 22,
     fontFamily: FONTS.bold,
     color: '#1E293B',
-    marginBottom: 6,
+    marginBottom: 2,
   },
   subtitle: {
-    fontSize: 14,
+    fontSize: 12,
     fontFamily: FONTS.regular,
     color: '#64748B',
   },
   // Progress Styles
   progressContainer: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 20,
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 12,
     shadowColor: '#000',
     shadowOffset: {width: 0, height: 2},
     shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 3,
+    shadowRadius: 6,
+    elevation: 2,
   },
   progressHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 8,
   },
   progressLabel: {
-    fontSize: 14,
+    fontSize: 13,
     fontFamily: FONTS.semiBold,
     color: '#475569',
   },
   progressCount: {
-    fontSize: 16,
+    fontSize: 14,
     fontFamily: FONTS.bold,
     color: '#6366F1',
   },
   progressBarBg: {
-    height: 8,
+    height: 6,
     backgroundColor: '#E2E8F0',
-    borderRadius: 4,
+    borderRadius: 3,
     overflow: 'hidden',
   },
   progressBarFill: {
     height: '100%',
     backgroundColor: '#6366F1',
-    borderRadius: 4,
+    borderRadius: 3,
   },
   progressDots: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 12,
-    paddingHorizontal: 10,
+    marginTop: 8,
+    paddingHorizontal: 8,
   },
   progressDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
     backgroundColor: '#E2E8F0',
   },
   progressDotActive: {
@@ -963,25 +1287,25 @@ const styles = StyleSheet.create({
   },
   // Section Title
   sectionTitle: {
-    fontSize: 16,
+    fontSize: 14,
     fontFamily: FONTS.semiBold,
     color: '#334155',
-    marginBottom: 12,
+    marginBottom: 8,
   },
   // Mode Selection Styles
   modeContainer: {
-    marginBottom: 20,
+    marginBottom: 12,
   },
   modeButtons: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginHorizontal: -6,
+    marginHorizontal: -4,
   },
   modeButton: {
-    width: (SCREEN_WIDTH - 52) / 2,
-    margin: 6,
-    padding: 14,
-    borderRadius: 14,
+    width: (SCREEN_WIDTH - 48) / 2,
+    margin: 4,
+    padding: 10,
+    borderRadius: 12,
     backgroundColor: '#FFFFFF',
     borderWidth: 2,
     borderColor: '#E2E8F0',
@@ -1010,9 +1334,9 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   modeNumber: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
     backgroundColor: '#F1F5F9',
     justifyContent: 'center',
     alignItems: 'center',
@@ -1021,7 +1345,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.25)',
   },
   modeNumberText: {
-    fontSize: 12,
+    fontSize: 11,
     fontFamily: FONTS.bold,
     color: '#64748B',
   },
@@ -1029,20 +1353,20 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   checkCircle: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
     backgroundColor: '#22C55E',
     justifyContent: 'center',
     alignItems: 'center',
   },
   checkIcon: {
-    fontSize: 14,
+    fontSize: 12,
     color: '#FFFFFF',
     fontFamily: FONTS.bold,
   },
   modeButtonText: {
-    fontSize: 14,
+    fontSize: 13,
     fontFamily: FONTS.semiBold,
     color: '#475569',
     flex: 1,
@@ -1056,16 +1380,16 @@ const styles = StyleSheet.create({
   // Capture Button Styles
   captureButton: {
     backgroundColor: '#6366F1',
-    paddingVertical: 18,
-    paddingHorizontal: 24,
-    borderRadius: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 14,
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 12,
     shadowColor: '#6366F1',
-    shadowOffset: {width: 0, height: 6},
-    shadowOpacity: 0.35,
-    shadowRadius: 12,
-    elevation: 8,
+    shadowOffset: {width: 0, height: 4},
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
   },
   captureButtonDisabled: {
     backgroundColor: '#94A3B8',
@@ -1080,112 +1404,112 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   captureButtonIcon: {
-    fontSize: 28,
-    marginBottom: 6,
+    fontSize: 22,
+    marginBottom: 4,
   },
   captureButtonText: {
     color: '#FFFFFF',
-    fontSize: 18,
+    fontSize: 16,
     fontFamily: FONTS.bold,
   },
   captureButtonSubtext: {
     color: 'rgba(255,255,255,0.8)',
-    fontSize: 13,
+    fontSize: 11,
     fontFamily: FONTS.regular,
     marginTop: 2,
   },
   // Error Styles
   errorContainer: {
     backgroundColor: '#FEF2F2',
-    padding: 14,
-    borderRadius: 12,
-    marginBottom: 20,
+    padding: 10,
+    borderRadius: 10,
+    marginBottom: 12,
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#FECACA',
   },
   errorIcon: {
-    fontSize: 18,
-    marginRight: 10,
+    fontSize: 16,
+    marginRight: 8,
   },
   errorText: {
     color: '#DC2626',
-    fontSize: 14,
+    fontSize: 13,
     fontFamily: FONTS.medium,
     flex: 1,
   },
   // Empty Capture Styles
   emptyCapture: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 32,
+    borderRadius: 12,
+    padding: 20,
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 12,
     borderWidth: 2,
     borderStyle: 'dashed',
     borderColor: '#E2E8F0',
   },
   emptyCaptureIcon: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: '#F1F5F9',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 10,
   },
   emptyCaptureIconText: {
-    fontSize: 28,
+    fontSize: 22,
   },
   emptyCaptureText: {
-    fontSize: 16,
+    fontSize: 14,
     fontFamily: FONTS.semiBold,
     color: '#475569',
-    marginBottom: 6,
+    marginBottom: 4,
   },
   emptyCaptureSubtext: {
-    fontSize: 14,
+    fontSize: 12,
     fontFamily: FONTS.regular,
     color: '#94A3B8',
   },
   // Results Styles
   resultsContainer: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 20,
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 12,
     shadowColor: '#000',
     shadowOffset: {width: 0, height: 2},
     shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 3,
+    shadowRadius: 6,
+    elevation: 2,
     borderWidth: 1,
     borderColor: '#E2E8F0',
   },
   resultsHeader: {
-    marginBottom: 16,
+    marginBottom: 10,
   },
   resultsBadge: {
     backgroundColor: '#DCFCE7',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 5,
     alignSelf: 'flex-start',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   resultsBadgeText: {
-    fontSize: 12,
+    fontSize: 11,
     fontFamily: FONTS.semiBold,
     color: '#166534',
   },
   resultsTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontFamily: FONTS.bold,
     color: '#1E293B',
   },
   resultsSubtitle: {
-    fontSize: 13,
+    fontSize: 12,
     fontFamily: FONTS.regular,
     color: '#64748B',
     marginTop: 2,
@@ -1194,100 +1518,100 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'center',
-    marginHorizontal: -6,
+    marginHorizontal: -4,
   },
   fingerCard: {
     backgroundColor: '#F8FAFC',
-    borderRadius: 12,
-    padding: 12,
-    width: (SCREEN_WIDTH - 80) / 2,
+    borderRadius: 10,
+    padding: 8,
+    width: (SCREEN_WIDTH - 72) / 2,
     alignItems: 'center',
-    margin: 6,
+    margin: 4,
     borderWidth: 1,
     borderColor: '#E2E8F0',
   },
   fingerCardSmall: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 10,
-    padding: 8,
+    borderRadius: 8,
+    padding: 6,
     alignItems: 'center',
-    margin: 4,
-    minWidth: 60,
+    margin: 3,
+    minWidth: 54,
     borderWidth: 1,
     borderColor: '#E2E8F0',
   },
   fingerImage: {
-    width: 70,
-    height: 90,
-    borderRadius: 10,
+    width: 60,
+    height: 78,
+    borderRadius: 8,
     backgroundColor: '#E2E8F0',
-    marginBottom: 10,
-  },
-  fingerImageSmall: {
-    width: 50,
-    height: 65,
-    borderRadius: 6,
-    backgroundColor: '#F1F5F9',
     marginBottom: 6,
   },
+  fingerImageSmall: {
+    width: 44,
+    height: 56,
+    borderRadius: 5,
+    backgroundColor: '#F1F5F9',
+    marginBottom: 4,
+  },
   fingerName: {
-    fontSize: 12,
+    fontSize: 11,
     fontFamily: FONTS.semiBold,
     color: '#334155',
     textAlign: 'center',
-    marginBottom: 6,
+    marginBottom: 4,
   },
   fingerNameSmall: {
-    fontSize: 9,
+    fontSize: 8,
     fontFamily: FONTS.medium,
     color: '#475569',
     textAlign: 'center',
   },
   qualityBadge: {
     backgroundColor: '#6366F1',
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
   },
   qualityBadgeText: {
-    fontSize: 11,
+    fontSize: 10,
     fontFamily: FONTS.bold,
     color: '#FFFFFF',
   },
   // Action Buttons Styles
   actionButtons: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 10,
   },
   resetButton: {
     flex: 1,
     backgroundColor: '#FFFFFF',
-    paddingVertical: 14,
-    borderRadius: 14,
+    paddingVertical: 12,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
     borderWidth: 2,
     borderColor: '#FCA5A5',
-    gap: 6,
+    gap: 4,
   },
   resetButtonIcon: {
-    fontSize: 16,
+    fontSize: 14,
   },
   resetButtonText: {
     color: '#DC2626',
-    fontSize: 15,
+    fontSize: 14,
     fontFamily: FONTS.semiBold,
   },
   continueButton: {
     flex: 2,
     backgroundColor: '#22C55E',
-    paddingVertical: 16,
-    borderRadius: 14,
+    paddingVertical: 14,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
-    gap: 8,
+    gap: 6,
     shadowColor: '#22C55E',
     shadowOffset: {width: 0, height: 4},
     shadowOpacity: 0.3,
@@ -1301,102 +1625,102 @@ const styles = StyleSheet.create({
   },
   continueButtonText: {
     color: '#FFFFFF',
-    fontSize: 16,
+    fontSize: 14,
     fontFamily: FONTS.bold,
   },
   continueButtonIcon: {
     color: '#FFFFFF',
-    fontSize: 18,
+    fontSize: 16,
     fontFamily: FONTS.bold,
   },
   // Modal Styles
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.7)',
+    backgroundColor: 'rgba(15, 23, 42, 0.75)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
+    padding: 16,
   },
   modalContainer: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 24,
+    borderRadius: 20,
     width: '100%',
-    maxWidth: 400,
-    maxHeight: SCREEN_HEIGHT * 0.85,
+    maxWidth: 380,
+    maxHeight: SCREEN_HEIGHT * 0.8,
     overflow: 'hidden',
   },
   modalHeader: {
     alignItems: 'center',
-    paddingTop: 24,
-    paddingHorizontal: 20,
-    paddingBottom: 16,
+    paddingTop: 16,
+    paddingHorizontal: 16,
+    paddingBottom: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
   },
   modalIconCircle: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: '#EEF2FF',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 14,
+    marginBottom: 10,
   },
   modalIcon: {
-    fontSize: 26,
+    fontSize: 22,
   },
   modalTitle: {
-    fontSize: 22,
+    fontSize: 18,
     fontFamily: FONTS.bold,
     color: '#1E293B',
-    marginBottom: 6,
+    marginBottom: 4,
   },
   modalSubtitle: {
-    fontSize: 14,
+    fontSize: 12,
     fontFamily: FONTS.regular,
     color: '#64748B',
     textAlign: 'center',
   },
   modalScrollView: {
-    maxHeight: SCREEN_HEIGHT * 0.45,
+    maxHeight: SCREEN_HEIGHT * 0.4,
   },
   modalScrollContent: {
-    padding: 16,
+    padding: 12,
   },
   handSection: {
-    marginBottom: 16,
+    marginBottom: 10,
     backgroundColor: '#F8FAFC',
-    borderRadius: 16,
-    padding: 14,
+    borderRadius: 12,
+    padding: 10,
     borderWidth: 1,
     borderColor: '#E2E8F0',
   },
   handHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
-    paddingBottom: 10,
+    marginBottom: 8,
+    paddingBottom: 8,
     borderBottomWidth: 1,
     borderBottomColor: '#E2E8F0',
   },
   handEmoji: {
-    fontSize: 20,
-    marginRight: 8,
+    fontSize: 16,
+    marginRight: 6,
   },
   handLabel: {
-    fontSize: 16,
+    fontSize: 14,
     fontFamily: FONTS.semiBold,
     color: '#334155',
     flex: 1,
   },
   handCount: {
-    fontSize: 13,
+    fontSize: 11,
     fontFamily: FONTS.medium,
     color: '#6366F1',
     backgroundColor: '#EEF2FF',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
   },
   handFingersRow: {
     flexDirection: 'row',
@@ -1404,42 +1728,42 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   confirmSection: {
-    paddingHorizontal: 20,
-    paddingVertical: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
     backgroundColor: '#F8FAFC',
   },
   confirmText: {
-    fontSize: 15,
+    fontSize: 13,
     fontFamily: FONTS.medium,
     color: '#475569',
     textAlign: 'center',
   },
   modalButtons: {
     flexDirection: 'row',
-    padding: 16,
-    gap: 12,
+    padding: 12,
+    gap: 10,
     borderTopWidth: 1,
     borderTopColor: '#F1F5F9',
   },
   modalButtonCancel: {
     flex: 1,
     backgroundColor: '#FFFFFF',
-    paddingVertical: 14,
-    borderRadius: 12,
+    paddingVertical: 12,
+    borderRadius: 10,
     alignItems: 'center',
     borderWidth: 2,
     borderColor: '#E2E8F0',
   },
   modalButtonCancelText: {
     color: '#64748B',
-    fontSize: 15,
+    fontSize: 14,
     fontFamily: FONTS.semiBold,
   },
   modalButtonConfirm: {
     flex: 1.5,
     backgroundColor: '#22C55E',
-    paddingVertical: 14,
-    borderRadius: 12,
+    paddingVertical: 12,
+    borderRadius: 10,
     alignItems: 'center',
     shadowColor: '#22C55E',
     shadowOffset: {width: 0, height: 2},
@@ -1449,149 +1773,282 @@ const styles = StyleSheet.create({
   },
   modalButtonConfirmText: {
     color: '#FFFFFF',
-    fontSize: 15,
+    fontSize: 14,
     fontFamily: FONTS.bold,
   },
   // Incomplete Capture Modal Styles
   incompleteModalContainer: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 24,
+    borderRadius: 20,
     width: '100%',
-    maxWidth: 380,
+    maxWidth: 360,
     overflow: 'hidden',
     shadowColor: '#000',
-    shadowOffset: {width: 0, height: 10},
-    shadowOpacity: 0.25,
-    shadowRadius: 20,
-    elevation: 10,
+    shadowOffset: {width: 0, height: 8},
+    shadowOpacity: 0.2,
+    shadowRadius: 16,
+    elevation: 8,
   },
   incompleteModalHeader: {
     alignItems: 'center',
-    paddingTop: 28,
-    paddingHorizontal: 24,
-    paddingBottom: 20,
+    paddingTop: 20,
+    paddingHorizontal: 20,
+    paddingBottom: 16,
     backgroundColor: '#FEF3C7',
   },
   incompleteIconCircle: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
     backgroundColor: '#FFFFFF',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 12,
     shadowColor: '#F59E0B',
-    shadowOffset: {width: 0, height: 4},
+    shadowOffset: {width: 0, height: 3},
     shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowRadius: 6,
+    elevation: 3,
   },
   incompleteIcon: {
-    fontSize: 32,
+    fontSize: 26,
   },
   incompleteModalTitle: {
-    fontSize: 22,
+    fontSize: 18,
     fontFamily: FONTS.bold,
     color: '#92400E',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   incompleteModalSubtitle: {
-    fontSize: 14,
+    fontSize: 12,
     fontFamily: FONTS.regular,
     color: '#A16207',
     textAlign: 'center',
-    lineHeight: 20,
+    lineHeight: 18,
   },
   missingCapturesContainer: {
-    padding: 20,
+    padding: 16,
     backgroundColor: '#FFFFFF',
   },
   missingCapturesLabel: {
-    fontSize: 14,
+    fontSize: 12,
     fontFamily: FONTS.semiBold,
     color: '#64748B',
-    marginBottom: 12,
+    marginBottom: 10,
   },
   missingCapturesList: {
-    gap: 10,
+    gap: 8,
   },
   missingCaptureItem: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FEF2F2',
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: '#FECACA',
   },
   missingCaptureNumber: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     backgroundColor: '#DC2626',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: 10,
   },
   missingCaptureNumberText: {
-    fontSize: 13,
+    fontSize: 12,
     fontFamily: FONTS.bold,
     color: '#FFFFFF',
   },
   missingCaptureText: {
-    fontSize: 15,
+    fontSize: 13,
     fontFamily: FONTS.medium,
     color: '#991B1B',
   },
   incompleteProgressContainer: {
-    paddingHorizontal: 20,
-    paddingBottom: 20,
+    paddingHorizontal: 16,
+    paddingBottom: 16,
     backgroundColor: '#FFFFFF',
   },
   incompleteProgressHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 8,
   },
   incompleteProgressLabel: {
-    fontSize: 13,
+    fontSize: 12,
     fontFamily: FONTS.medium,
     color: '#64748B',
   },
   incompleteProgressCount: {
-    fontSize: 13,
+    fontSize: 12,
     fontFamily: FONTS.semiBold,
     color: '#F59E0B',
   },
   incompleteProgressBarBg: {
-    height: 8,
+    height: 6,
     backgroundColor: '#E2E8F0',
-    borderRadius: 4,
+    borderRadius: 3,
     overflow: 'hidden',
   },
   incompleteProgressBarFill: {
     height: '100%',
     backgroundColor: '#F59E0B',
-    borderRadius: 4,
+    borderRadius: 3,
   },
   incompleteModalButton: {
     backgroundColor: '#6366F1',
-    marginHorizontal: 20,
-    marginBottom: 20,
-    paddingVertical: 16,
-    borderRadius: 14,
+    marginHorizontal: 16,
+    marginBottom: 16,
+    paddingVertical: 14,
+    borderRadius: 12,
     alignItems: 'center',
     shadowColor: '#6366F1',
-    shadowOffset: {width: 0, height: 4},
+    shadowOffset: {width: 0, height: 3},
     shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowRadius: 6,
+    elevation: 3,
   },
   incompleteModalButtonText: {
     color: '#FFFFFF',
+    fontSize: 14,
+    fontFamily: FONTS.bold,
+  },
+  // Low Quality Modal Styles
+  lowQualityModalContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    width: '100%',
+    maxWidth: 360,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 8},
+    shadowOpacity: 0.2,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  lowQualityModalHeader: {
+    alignItems: 'center',
+    paddingTop: 20,
+    paddingHorizontal: 20,
+    paddingBottom: 16,
+    backgroundColor: '#FEF2F2',
+  },
+  lowQualityIconCircle: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: '#DC2626',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+    shadowColor: '#DC2626',
+    shadowOffset: {width: 0, height: 3},
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  lowQualityIcon: {
+    fontSize: 26,
+    color: '#FFFFFF',
+    fontFamily: FONTS.bold,
+  },
+  lowQualityModalTitle: {
+    fontSize: 18,
+    fontFamily: FONTS.bold,
+    color: '#991B1B',
+    marginBottom: 6,
+  },
+  lowQualityModalSubtitle: {
+    fontSize: 12,
+    fontFamily: FONTS.regular,
+    color: '#B91C1C',
+    textAlign: 'center',
+    lineHeight: 18,
+  },
+  lowQualityFingersContainer: {
+    padding: 16,
+    backgroundColor: '#FFFFFF',
+  },
+  lowQualityFingersLabel: {
+    fontSize: 12,
+    fontFamily: FONTS.semiBold,
+    color: '#64748B',
+    marginBottom: 10,
+  },
+  lowQualityFingersList: {
+    gap: 8,
+  },
+  lowQualityFingerItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF2F2',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#FECACA',
+  },
+  lowQualityFingerIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+  },
+  lowQualityFingerIconText: {
     fontSize: 16,
+  },
+  lowQualityFingerInfo: {
+    flex: 1,
+  },
+  lowQualityFingerName: {
+    fontSize: 13,
+    fontFamily: FONTS.semiBold,
+    color: '#1E293B',
+  },
+  lowQualityFingerQuality: {
+    fontSize: 11,
+    fontFamily: FONTS.regular,
+    color: '#64748B',
+    marginTop: 2,
+  },
+  lowQualityBadge: {
+    backgroundColor: '#DC2626',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  lowQualityBadgeText: {
+    fontSize: 10,
+    fontFamily: FONTS.bold,
+    color: '#FFFFFF',
+  },
+  lowQualityModalButtons: {
+    padding: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+  },
+  lowQualityButtonRecapture: {
+    backgroundColor: '#F59E0B',
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    shadowColor: '#F59E0B',
+    shadowOffset: {width: 0, height: 2},
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  lowQualityButtonRecaptureText: {
+    color: '#FFFFFF',
+    fontSize: 14,
     fontFamily: FONTS.bold,
   },
 });

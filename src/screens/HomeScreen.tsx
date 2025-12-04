@@ -368,7 +368,7 @@ const HomeScreen = ({ navigation }: Props) => {
             onPressOut={handlePressOutCard1}
           />
 
-          <HomeActionCard
+          {/* <HomeActionCard
             title="Identity Verification"
             description="Authenticate your identity instantly using your enrolled biometric credentials with military-grade security"
             icon="🛡️"
@@ -381,7 +381,7 @@ const HomeScreen = ({ navigation }: Props) => {
             onPressIn={handlePressInCard2}
             onPressOut={handlePressOutCard2}
             iconAnimation={spin}
-          />
+          /> */}
         </View>
 
         <SecurityFooter

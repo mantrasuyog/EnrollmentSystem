@@ -15,8 +15,10 @@ import {
 } from 'react-native';
 import {useSelector} from 'react-redux';
 import {RootState} from '../redux/store';
+import {selectUserEnrolled} from '../redux/userEnrollmentSlice';
 
-import FaceAndFingerEnrollmentScreen from './FaceAndFingerEnrollmentScreen';
+import Tech5FaceCaptureScreen from './Tech5FaceCaptureScreen';
+import FingerCaptureScreen from './FingerCaptureScreen';
 import DocumentUploadScreen from './DocumentUploadScreen';
 import SuccessScreen from './SuccessScreen';
 
@@ -25,8 +27,12 @@ import AnimatedScreen from '../components/AnimatedScreen';
 import ValidationModal from '../components/ValidationModal';
 import { colors } from '../common/colors';
 
+// Sub-steps for step 2 (Biometric Info)
+type BiometricSubStep = 'face' | 'finger';
+
 const DashboardScreen = () => {
   const [currentStep, setCurrentStep] = useState(1);
+  const [biometricSubStep, setBiometricSubStep] = useState<BiometricSubStep>('face');
   const containerAnim = useRef(new Animated.Value(0)).current;
 
   const steps = useMemo(
@@ -38,6 +44,7 @@ const DashboardScreen = () => {
     (state: RootState) => state.faceEnrollment.enrolledImageBase64,
   );
   const scanData = useSelector((state: RootState) => state.scan.scans);
+  const userEnrolled = useSelector(selectUserEnrolled);
 
   const [showFaceRequiredModal, setShowFaceRequiredModal] = useState(false);
   const [showDocumentRequiredModal, setShowDocumentRequiredModal] =
@@ -105,6 +112,11 @@ const DashboardScreen = () => {
 
   const handleStepPress = useCallback(
     (step: number) => {
+      // If user is already enrolled, prevent going back to steps 1 and 2
+      if (userEnrolled && (step === 1 || step === 2)) {
+        return;
+      }
+
       if (step === 1) {
         setCurrentStep(1);
         return;
@@ -134,6 +146,7 @@ const DashboardScreen = () => {
     [
       scanData.length,
       faceEnrolled,
+      userEnrolled,
       showDocumentRequiredModalWithAnimation,
       showFaceRequiredModalWithAnimation,
     ],
@@ -156,6 +169,8 @@ const DashboardScreen = () => {
       showFaceRequiredModalWithAnimation();
       return;
     }
+    // Reset biometric sub-step for next time
+    setBiometricSubStep('face');
     setCurrentStep(3);
   }, [
     scanData.length,
@@ -164,23 +179,36 @@ const DashboardScreen = () => {
     showFaceRequiredModalWithAnimation,
   ]);
 
+  // Callback to move from face capture to finger capture within step 2
+  const handleFaceCaptureComplete = useCallback(() => {
+    setBiometricSubStep('finger');
+  }, []);
+
   const renderStepContent = useCallback(() => {
     switch (currentStep) {
       case 1:
         return <DocumentUploadScreen onSubmitSuccess={handleMoveToStep2} />;
       case 2:
-        return (
-          <FaceAndFingerEnrollmentScreen
-            isComponent
-            onProceedToNext={handleMoveToStep3}
-          />
-        );
+        // Handle sub-steps within biometric enrollment
+        if (biometricSubStep === 'face') {
+          return (
+            <Tech5FaceCaptureScreen
+              onFaceCaptureComplete={handleFaceCaptureComplete}
+            />
+          );
+        } else {
+          return (
+            <FingerCaptureScreen
+              onProceedToNext={handleMoveToStep3}
+            />
+          );
+        }
       case 3:
         return <SuccessScreen />;
       default:
         return <DocumentUploadScreen onSubmitSuccess={handleMoveToStep2} />;
     }
-  }, [currentStep, handleMoveToStep2, handleMoveToStep3]);
+  }, [currentStep, biometricSubStep, handleMoveToStep2, handleMoveToStep3, handleFaceCaptureComplete]);
 
   const backgroundColor = useMemo(
     () =>
@@ -204,7 +232,7 @@ const DashboardScreen = () => {
       />
 
       <View style={styles.contentWrapper}>
-        <AnimatedScreen key={currentStep}>
+        <AnimatedScreen key={`${currentStep}-${biometricSubStep}`}>
           {renderStepContent()}
         </AnimatedScreen>
       </View>

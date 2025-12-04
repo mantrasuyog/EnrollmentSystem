@@ -1,6 +1,8 @@
 import React, {useState, useCallback, useEffect, useRef} from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { setEnrolledImage, clearEnrolledImage } from '../redux/faceEnrollmentSlice';
+import { useNavigation } from '@react-navigation/native';
+import { getFaceEnrollment } from '../services/database.service';
 import {
   View,
   Text,
@@ -30,6 +32,7 @@ interface Tech5FaceCaptureScreenProps {
       onCaptureComplete?: (result: CaptureResult) => void;
     };
   };
+  onFaceCaptureComplete?: () => void;
 }
 
 type CaptureMode = 'standard' | 'icao' | 'liveness' | 'quick';
@@ -45,10 +48,13 @@ const FONTS = {
 };
 
 const Tech5FaceCaptureScreen: React.FC<Tech5FaceCaptureScreenProps> = ({
-  navigation,
+  navigation: propNavigation,
   route,
+  onFaceCaptureComplete,
 }) => {
   const dispatch = useDispatch();
+  const hookNavigation = useNavigation();
+  const navigation = propNavigation || hookNavigation;
   // Select the latest scan from Redux
   const latestScan = useSelector((state: any) => {
     const scans = state.scan?.scans || [];
@@ -59,6 +65,13 @@ const Tech5FaceCaptureScreen: React.FC<Tech5FaceCaptureScreenProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [selectedMode, setSelectedMode] = useState<CaptureMode>('standard');
   const [showDetailModal, setShowDetailModal] = useState(false);
+  const [showExistingFaceModal, setShowExistingFaceModal] = useState(false);
+  const [existingFaceImage, setExistingFaceImage] = useState<string | null>(null);
+
+  // Get existing face enrollment from Redux
+  const existingEnrolledFace = useSelector(
+    (state: any) => state.faceEnrollment?.enrolledImageBase64,
+  );
 
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -188,6 +201,20 @@ const Tech5FaceCaptureScreen: React.FC<Tech5FaceCaptureScreenProps> = ({
       setIsCapturing(false);
     }
   }, [selectedMode, captureConfig, onCaptureComplete]);
+
+  // Check for existing face enrollment and show modal if exists
+  const checkExistingFaceAndCapture = useCallback(() => {
+    // Check Redux first, then SQLite as fallback
+    const existingFace = existingEnrolledFace || getFaceEnrollment();
+
+    if (existingFace) {
+      setExistingFaceImage(existingFace);
+      setShowExistingFaceModal(true);
+    } else {
+      // No existing face, proceed with capture
+      handleCapture();
+    }
+  }, [existingEnrolledFace, handleCapture]);
 
   const getModeLabel = (mode: CaptureMode): string => {
     switch (mode) {
@@ -456,6 +483,84 @@ const Tech5FaceCaptureScreen: React.FC<Tech5FaceCaptureScreenProps> = ({
     );
   };
 
+  // Modal for existing face enrollment
+  const renderExistingFaceModal = () => {
+    if (!existingFaceImage) return null;
+
+    const imageUri = Tech5Face.toImageUri(existingFaceImage);
+
+    return (
+      <Modal
+        visible={showExistingFaceModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowExistingFaceModal(false)}>
+        <View style={styles.modalOverlay}>
+          <Animated.View style={styles.existingFaceModalContainer}>
+            {/* Modal Header */}
+            <View style={styles.existingFaceModalHeader}>
+              <View style={styles.existingFaceIconCircle}>
+                <Text style={styles.existingFaceIcon}>😊</Text>
+              </View>
+              <Text style={styles.existingFaceTitle}>Face Already Enrolled</Text>
+              <Text style={styles.existingFaceSubtitle}>
+                A face has already been captured for this enrollment. What would you like to do?
+              </Text>
+            </View>
+
+            {/* Existing Face Image */}
+            <View style={styles.existingFaceImageContainer}>
+              <Image source={{uri: imageUri}} style={styles.existingFaceImage} />
+            </View>
+
+            {/* Action Buttons */}
+            <View style={styles.existingFaceActions}>
+              {/* Enroll New Face Button */}
+              <TouchableOpacity
+                style={styles.enrollNewFaceButton}
+                onPress={() => {
+                  setShowExistingFaceModal(false);
+                  // Clear existing face and start new capture
+                  dispatch(clearEnrolledImage());
+                  handleCapture();
+                }}
+                activeOpacity={0.85}>
+                <Text style={styles.enrollNewFaceIcon}>📷</Text>
+                <Text style={styles.enrollNewFaceText}>Enroll New Face</Text>
+              </TouchableOpacity>
+
+              {/* Keep Existing Button */}
+              <TouchableOpacity
+                style={styles.keepExistingButton}
+                onPress={() => {
+                  setShowExistingFaceModal(false);
+                  // Set the existing face as capture result to show it
+                  setCaptureResult({
+                    success: true,
+                    imageBase64: existingFaceImage,
+                    faceData: undefined,
+                    timedOut: false,
+                  });
+                }}
+                activeOpacity={0.85}>
+                <Text style={styles.keepExistingIcon}>✓</Text>
+                <Text style={styles.keepExistingText}>Keep Existing Face</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Cancel Button */}
+            <TouchableOpacity
+              style={styles.cancelModalButton}
+              onPress={() => setShowExistingFaceModal(false)}
+              activeOpacity={0.85}>
+              <Text style={styles.cancelModalText}>Cancel</Text>
+            </TouchableOpacity>
+          </Animated.View>
+        </View>
+      </Modal>
+    );
+  };
+
   const renderCaptureResult = () => {
     if (!captureResult || !captureResult.success) return null;
 
@@ -572,7 +677,7 @@ const Tech5FaceCaptureScreen: React.FC<Tech5FaceCaptureScreenProps> = ({
               isCapturing && styles.captureButtonDisabled,
               captureResult && styles.captureButtonRecapture,
             ]}
-            onPress={handleCapture}
+            onPress={checkExistingFaceAndCapture}
             disabled={isCapturing}
             activeOpacity={0.85}>
             {isCapturing ? (
@@ -622,7 +727,7 @@ const Tech5FaceCaptureScreen: React.FC<Tech5FaceCaptureScreenProps> = ({
         {renderCaptureResult()}
 
         {/* View Detail Report Button */}
-        {captureResult?.faceData && (
+        {/* {captureResult?.faceData && (
           <TouchableOpacity
             style={styles.viewDetailButton}
             onPress={() => setShowDetailModal(true)}
@@ -631,10 +736,10 @@ const Tech5FaceCaptureScreen: React.FC<Tech5FaceCaptureScreenProps> = ({
             <Text style={styles.viewDetailText}>View Detailed Report</Text>
             <Text style={styles.viewDetailArrow}>→</Text>
           </TouchableOpacity>
-        )}
+        )} */}
 
         {/* Continue Button */}
-        {captureResult && navigation && (
+        {captureResult && (
           <TouchableOpacity
             style={styles.continueButton}
             onPress={() => {
@@ -642,7 +747,12 @@ const Tech5FaceCaptureScreen: React.FC<Tech5FaceCaptureScreenProps> = ({
               if (captureResult.imageBase64) {
                 dispatch(setEnrolledImage(captureResult.imageBase64));
               }
-              navigation.goBack();
+              // Call the callback to move to finger capture step
+              if (onFaceCaptureComplete) {
+                onFaceCaptureComplete();
+              } else if (navigation) {
+                navigation.goBack();
+              }
             }}
             activeOpacity={0.85}>
             <Text style={styles.continueButtonText}>Continue</Text>
@@ -653,6 +763,9 @@ const Tech5FaceCaptureScreen: React.FC<Tech5FaceCaptureScreenProps> = ({
 
       {/* Detail Modal */}
       {renderDetailModal()}
+
+      {/* Existing Face Modal */}
+      {renderExistingFaceModal()}
     </SafeAreaView>
   );
 };
@@ -660,43 +773,45 @@ const Tech5FaceCaptureScreen: React.FC<Tech5FaceCaptureScreenProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    marginTop: Platform.OS === 'android' ? -30 : 0,
     backgroundColor: '#F8FAFC',
   },
   scrollContent: {
-    padding: 20,
-    paddingBottom: 40,
+    padding: 16,
+    paddingTop: 8,
+    paddingBottom: 20,
   },
   // Header Styles
   header: {
     alignItems: 'center',
-    marginBottom: 24,
-    paddingTop: 10,
+    marginBottom: 10,
+    paddingTop: 0,
   },
   headerIconContainer: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
     backgroundColor: '#EEF2FF',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 8,
     shadowColor: '#6366F1',
-    shadowOffset: {width: 0, height: 4},
+    shadowOffset: {width: 0, height: 2},
     shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 4,
+    shadowRadius: 8,
+    elevation: 3,
   },
   headerIcon: {
-    fontSize: 32,
+    fontSize: 24,
   },
   title: {
-    fontSize: 26,
+    fontSize: 22,
     fontFamily: FONTS.bold,
     color: '#1E293B',
-    marginBottom: 6,
+    marginBottom: 2,
   },
   subtitle: {
-    fontSize: 14,
+    fontSize: 12,
     fontFamily: FONTS.regular,
     color: '#64748B',
   },
@@ -789,50 +904,50 @@ const styles = StyleSheet.create({
   // Empty Capture Styles
   emptyCapture: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 32,
+    borderRadius: 12,
+    padding: 20,
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 12,
     borderWidth: 2,
     borderStyle: 'dashed',
     borderColor: '#E2E8F0',
   },
   emptyCaptureIcon: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: '#F1F5F9',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 10,
   },
   emptyCaptureIconText: {
-    fontSize: 28,
+    fontSize: 22,
   },
   emptyCaptureText: {
-    fontSize: 16,
+    fontSize: 14,
     fontFamily: FONTS.semiBold,
     color: '#475569',
-    marginBottom: 6,
+    marginBottom: 4,
   },
   emptyCaptureSubtext: {
-    fontSize: 14,
+    fontSize: 12,
     fontFamily: FONTS.regular,
     color: '#94A3B8',
   },
   // Capture Button Styles
   captureButton: {
     backgroundColor: '#6366F1',
-    paddingVertical: 18,
-    paddingHorizontal: 24,
-    borderRadius: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 14,
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 12,
     shadowColor: '#6366F1',
-    shadowOffset: {width: 0, height: 6},
-    shadowOpacity: 0.35,
-    shadowRadius: 12,
-    elevation: 8,
+    shadowOffset: {width: 0, height: 4},
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
   },
   captureButtonDisabled: {
     backgroundColor: '#94A3B8',
@@ -847,26 +962,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   captureButtonIcon: {
-    fontSize: 28,
-    marginBottom: 6,
+    fontSize: 22,
+    marginBottom: 4,
   },
   captureButtonText: {
     color: '#FFFFFF',
-    fontSize: 18,
+    fontSize: 16,
     fontFamily: FONTS.bold,
   },
   captureButtonSubtext: {
     color: 'rgba(255,255,255,0.8)',
-    fontSize: 13,
+    fontSize: 11,
     fontFamily: FONTS.regular,
     marginTop: 2,
   },
   // Error Styles
   errorContainer: {
     backgroundColor: '#FEF2F2',
-    padding: 14,
-    borderRadius: 12,
-    marginBottom: 20,
+    padding: 10,
+    borderRadius: 10,
+    marginBottom: 12,
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
@@ -885,61 +1000,61 @@ const styles = StyleSheet.create({
   // Warning Styles
   warningContainer: {
     backgroundColor: '#FFFBEB',
-    padding: 14,
-    borderRadius: 12,
-    marginBottom: 20,
+    padding: 10,
+    borderRadius: 10,
+    marginBottom: 12,
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#FEF3C7',
   },
   warningIcon: {
-    fontSize: 18,
-    marginRight: 10,
+    fontSize: 16,
+    marginRight: 8,
   },
   warningText: {
     color: '#D97706',
-    fontSize: 14,
+    fontSize: 12,
     fontFamily: FONTS.medium,
     flex: 1,
   },
   // Results Styles
   resultsContainer: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 16,
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 12,
     shadowColor: '#000',
     shadowOffset: {width: 0, height: 2},
     shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 3,
+    shadowRadius: 6,
+    elevation: 2,
     borderWidth: 1,
     borderColor: '#E2E8F0',
   },
   resultsHeader: {
-    marginBottom: 16,
+    marginBottom: 10,
   },
   resultsBadge: {
     backgroundColor: '#DCFCE7',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 5,
     alignSelf: 'flex-start',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   resultsBadgeText: {
-    fontSize: 12,
+    fontSize: 11,
     fontFamily: FONTS.semiBold,
     color: '#166534',
   },
   resultsTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontFamily: FONTS.bold,
     color: '#1E293B',
   },
   resultsSubtitle: {
-    fontSize: 13,
+    fontSize: 12,
     fontFamily: FONTS.regular,
     color: '#64748B',
     marginTop: 2,
@@ -947,13 +1062,13 @@ const styles = StyleSheet.create({
   imageContainer: {
     alignItems: 'center',
     backgroundColor: '#F8FAFC',
-    borderRadius: 16,
-    padding: 16,
+    borderRadius: 12,
+    padding: 12,
   },
   faceImage: {
-    width: 200,
-    height: 250,
-    borderRadius: 16,
+    width: 160,
+    height: 200,
+    borderRadius: 12,
     backgroundColor: '#E2E8F0',
   },
   complianceBadgeOverlay: {
@@ -1255,6 +1370,119 @@ const styles = StyleSheet.create({
     height: 160,
     borderRadius: 12,
     backgroundColor: '#E2E8F0',
+  },
+  // Existing Face Modal Styles
+  existingFaceModalContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    width: '90%',
+    maxWidth: 360,
+    overflow: 'hidden',
+    padding: 20,
+  },
+  existingFaceModalHeader: {
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  existingFaceIconCircle: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#FEF3C7',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  existingFaceIcon: {
+    fontSize: 28,
+  },
+  existingFaceTitle: {
+    fontSize: 20,
+    fontFamily: FONTS.bold,
+    color: '#1E293B',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  existingFaceSubtitle: {
+    fontSize: 14,
+    fontFamily: FONTS.regular,
+    color: '#64748B',
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  existingFaceImageContainer: {
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 20,
+  },
+  existingFaceImage: {
+    width: 140,
+    height: 180,
+    borderRadius: 12,
+    backgroundColor: '#E2E8F0',
+  },
+  existingFaceActions: {
+    gap: 12,
+    marginBottom: 12,
+  },
+  enrollNewFaceButton: {
+    backgroundColor: '#6366F1',
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    shadowColor: '#6366F1',
+    shadowOffset: {width: 0, height: 2},
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  enrollNewFaceIcon: {
+    fontSize: 18,
+  },
+  enrollNewFaceText: {
+    fontSize: 15,
+    fontFamily: FONTS.bold,
+    color: '#FFFFFF',
+  },
+  keepExistingButton: {
+    backgroundColor: '#22C55E',
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    shadowColor: '#22C55E',
+    shadowOffset: {width: 0, height: 2},
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  keepExistingIcon: {
+    fontSize: 16,
+    color: '#FFFFFF',
+    fontFamily: FONTS.bold,
+  },
+  keepExistingText: {
+    fontSize: 15,
+    fontFamily: FONTS.bold,
+    color: '#FFFFFF',
+  },
+  cancelModalButton: {
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  cancelModalText: {
+    fontSize: 14,
+    fontFamily: FONTS.semiBold,
+    color: '#64748B',
   },
 });
 
