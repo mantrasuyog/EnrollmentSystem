@@ -20,9 +20,13 @@ import { generateAndSharePDF } from "../services/pdfReport.service";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import { RootState } from "../redux/store";
-import { selectFingerTemplates, FingerTemplates } from "../redux/fingerEnrollmentSlice";
+import { selectFingerTemplates, FingerTemplates, clearFingerEnrollment } from "../redux/fingerEnrollmentSlice";
+import { clearScanData } from "../redux/scanSlice";
+import { clearEnrolledImage } from "../redux/faceEnrollmentSlice";
+import { resetUserEnrollment } from "../redux/userEnrollmentSlice";
+import { clearAllEnrollmentData } from "../services/database.service";
 import SuccessCheckmark from "../components/SuccessCheckmark";
 import SuccessRegistrationCard from "../components/SuccessRegistrationCard";
 import SuccessEnrollmentDetailsCard from "../components/SuccessEnrollmentDetailsCard";
@@ -40,6 +44,7 @@ const { width } = Dimensions.get("window");
 
 const SuccessScreen = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const dispatch = useDispatch();
   const scaleAnim = useRef(new Animated.Value(0)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
@@ -271,7 +276,7 @@ const SuccessScreen = () => {
       case "photo":
         return enrolledFaceImage ? `data:image/jpeg;base64,${enrolledFaceImage}` : scans?.[0]?.Portrait_Image;
       case "fingerprint":
-        return null; // Handled separately for left/right hands
+        return null;
       default:
         return selectedDocument.image;
     }
@@ -304,11 +309,18 @@ const SuccessScreen = () => {
   ], []);
 
   const handleBackToHome = useCallback(() => {
+    dispatch(clearScanData());
+    dispatch(clearEnrolledImage());
+    dispatch(clearFingerEnrollment());
+    dispatch(resetUserEnrollment());
+
+    clearAllEnrollmentData();
+
     navigation.reset({
       index: 0,
       routes: [{ name: 'Home' }],
     });
-  }, [navigation]);
+  }, [navigation, dispatch]);
 
   return (
     <View style={styles.container}>

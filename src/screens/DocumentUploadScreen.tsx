@@ -7,7 +7,6 @@ import {
   Modal,
   Text,
   TouchableOpacity,
-  TextInput,
   Animated as RNAnimated,
   Image,
   ScrollView,
@@ -60,6 +59,8 @@ interface IProps {
   scanData?: any[];
 }
 
+const HARDCODED_CENTRE_CODE = 'SLJET001';
+
 const DocumentUploadScreen: React.FC<IProps> = ({
   navigation,
   addScanData,
@@ -75,14 +76,11 @@ const DocumentUploadScreen: React.FC<IProps> = ({
   const [docFront, setDocFront] = useState(require('../assets/images/id.png'));
   const [allTextFields, setAllTextFields] = useState<any[]>([]);
   const [isCentreCodeEntered, setIsCentreCodeEntered] = useState(false);
-  const [enteredCentreCode, setEnteredCentreCode] = useState('');
   const [isLoadedFromExisting, setIsLoadedFromExisting] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
   const [scanProgress, setScanProgress] = useState(0);
   const [showActionModal, setShowActionModal] = useState(false);
   const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
-  const [showCentreCodeModal, setShowCentreCodeModal] = useState(false);
-  const [centreCodeInput, setCentreCodeInput] = useState('');
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorModalMessage, setErrorModalMessage] = useState(
     'Details Not Found',
@@ -219,7 +217,9 @@ const DocumentUploadScreen: React.FC<IProps> = ({
             () => {},
           );
 
-          setFullName('Ready');
+          if (!scanData || scanData.length === 0 || !scanData[0].Name || scanData[0].Name === '') {
+            setFullName('Ready');
+          }
           setIsSDKInitializing(false);
           onInitialized();
         },
@@ -272,15 +272,31 @@ const DocumentUploadScreen: React.FC<IProps> = ({
       const latestScan = scanData[0];
 
       if (latestScan.Document_Image && latestScan.Centre_Code) {
-        if (latestScan.Name) {
-          setFullName(latestScan.Name);
+        let nameToSet = '';
+
+        if (latestScan.Name && latestScan.Name !== 'Ready' && latestScan.Name !== '') {
+          nameToSet = latestScan.Name;
         }
 
-        setEnteredCentreCode(latestScan.Centre_Code);
-        setIsCentreCodeEntered(true);
-        setIsLoadedFromExisting(true);
+        if (!nameToSet && latestScan.scanned_json) {
+          try {
+            const fields = JSON.parse(latestScan.scanned_json);
+            setAllTextFields(fields);
 
-        if (latestScan.scanned_json) {
+            const nameField = fields.find(
+              (f: any) =>
+                f.name?.toLowerCase().includes('surname') ||
+                f.name?.toLowerCase().includes('given name') ||
+                f.name?.toLowerCase() === 'name' ||
+                f.name?.toLowerCase().includes('full name')
+            );
+            if (nameField && nameField.value) {
+              nameToSet = nameField.value;
+            }
+          } catch (error) {
+            setAllTextFields([]);
+          }
+        } else if (latestScan.scanned_json) {
           try {
             const fields = JSON.parse(latestScan.scanned_json);
             setAllTextFields(fields);
@@ -288,6 +304,13 @@ const DocumentUploadScreen: React.FC<IProps> = ({
             setAllTextFields([]);
           }
         }
+
+        if (nameToSet) {
+          setFullName(nameToSet);
+        }
+
+        setIsCentreCodeEntered(true);
+        setIsLoadedFromExisting(true);
       }
     }
   }, [scanData]);
@@ -424,10 +447,19 @@ const DocumentUploadScreen: React.FC<IProps> = ({
         return;
       }
 
+      let extractedName = '';
+      if (results.textResult && results.textResult.fields) {
+        const nameField = results.textResult.fields.find(
+          f => f.fieldType === Enum.eVisualFieldType.FT_SURNAME_AND_GIVEN_NAMES
+        );
+        if (nameField && nameField.value) {
+          extractedName = nameField.value.replace(/name[\s:\n]*/gi, '').trim();
+        }
+      }
+
       results.textFieldValueByType(
         Enum.eVisualFieldType.FT_SURNAME_AND_GIVEN_NAMES,
         (value: string | undefined) => {
-          // Clean name - remove "name", "Name", "Name\n", "Name:" etc. from the value
           let cleanedName = value || '';
           if (cleanedName) {
             cleanedName = cleanedName.replace(/name[\s:\n]*/gi, '').trim();
@@ -464,7 +496,6 @@ const DocumentUploadScreen: React.FC<IProps> = ({
       if (results.textResult && results.textResult.fields) {
         results.textResult.fields.forEach(f => {
           let fieldValue = f.value;
-          // Clean name field - remove "name", "Name", "Name\n", "Name:" etc. from the value
           if (fieldValue) {
             fieldValue = fieldValue.replace(/name[\s:\n]*/gi, '').trim();
           }
@@ -483,10 +514,28 @@ const DocumentUploadScreen: React.FC<IProps> = ({
       }
 
       setAllTextFields(fields);
-      setShowCentreCodeModal(true);
-      setCentreCodeInput('');
+
+      setTimeout(() => {
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+        let regCode = '';
+        for (let i = 0; i < 6; i++) {
+          regCode += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+
+        const finalData = {
+          Registration_Number: regCode,
+          Centre_Code: HARDCODED_CENTRE_CODE,
+          Name: extractedName || ScanData.Name,
+          Portrait_Image: ScanData.Portrait_Image,
+          Document_Image: ScanData.Document_Image,
+          scanned_json: JSON.stringify(fields || []),
+        };
+        clearScanData();
+        addScanData(finalData);
+        setIsCentreCodeEntered(true);
+      }, 300);
     },
-    [isResultsValid, showErrorModalFn],
+    [isResultsValid, showErrorModalFn, clearScanData, addScanData],
   );
 
   const handleResults = useCallback(
@@ -584,16 +633,16 @@ const DocumentUploadScreen: React.FC<IProps> = ({
     setShowDeleteConfirmModal(false);
 
     setTimeout(() => {
-      clearResults();
+      ScanData.clear();
       clearScanData();
       setIsCentreCodeEntered(false);
-      setEnteredCentreCode('');
-      setCentreCodeInput('');
       setAllTextFields([]);
       setFullName('Ready');
       setIsLoadedFromExisting(false);
+      setDocFront(require('../assets/images/id.png'));
+      setPortrait(require('../assets/images/portrait.png'));
     }, 300);
-  }, [clearResults, clearScanData]);
+  }, [clearScanData]);
 
   const scan = useCallback(() => {
     handleButtonPress();
@@ -655,59 +704,6 @@ const DocumentUploadScreen: React.FC<IProps> = ({
     }, 300);
   }, [handleButtonPress, clearResults, startScanProgress, stopScanProgress]);
 
-  const generateCode = useCallback(() => {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    let result = '';
-    for (let i = 0; i < 6; i++) {
-      result += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return result;
-  }, []);
-
-  const createScannedData = useCallback(
-    (centreCode: string) => {
-      return {
-        Registration_Number: generateCode(),
-        Centre_Code: centreCode,
-        Name: ScanData.Name,
-        Portrait_Image: ScanData.Portrait_Image,
-        Document_Image: ScanData.Document_Image,
-        scanned_json: JSON.stringify(allTextFields || []),
-      };
-    },
-    [allTextFields, generateCode],
-  );
-
-  const handleCentreCodeSubmit = useCallback(() => {
-    if (centreCodeInput.trim() === '') {
-      setAlertModal({
-        visible: true,
-        title: 'Error',
-        message: 'Please enter Centre Code',
-      });
-      return;
-    }
-
-    if (centreCodeInput.length < 4) {
-      setAlertModal({
-        visible: true,
-        title: 'Error',
-        message: 'Centre Code must be at least 4 characters',
-      });
-      return;
-    }
-
-    setShowCentreCodeModal(false);
-
-    setTimeout(() => {
-      const finalData = createScannedData(centreCodeInput);
-      clearScanData();
-      addScanData(finalData);
-      setIsCentreCodeEntered(true);
-      setEnteredCentreCode(centreCodeInput);
-    }, 500);
-  }, [centreCodeInput, createScannedData, clearScanData, addScanData]);
-
   const openDocumentZoom = useCallback(() => {
     if (typeof docFront === 'object' && 'uri' in docFront && docFront.uri) {
       setShowDocumentZoomModal(true);
@@ -715,7 +711,7 @@ const DocumentUploadScreen: React.FC<IProps> = ({
   }, [docFront]);
 
   const showActionModalFn = useCallback(() => {
-    if (scanData && scanData.length > 0) {
+    if (isCentreCodeEntered && scanData && scanData.length > 0) {
       const latestScan = scanData[0];
       if (latestScan.Document_Image || latestScan.Portrait_Image) {
         setShowExistingDocumentModal(true);
@@ -723,7 +719,7 @@ const DocumentUploadScreen: React.FC<IProps> = ({
       }
     }
     setShowActionModal(true);
-  }, [scanData]);
+  }, [scanData, isCentreCodeEntered]);
 
   const handleUseExistingDocument = useCallback(() => {
     setShowExistingDocumentModal(false);
@@ -738,7 +734,6 @@ const DocumentUploadScreen: React.FC<IProps> = ({
     setShowExistingDocumentModal(false);
     clearScanData();
     setIsCentreCodeEntered(false);
-    setEnteredCentreCode('');
     setIsLoadedFromExisting(false);
     setTimeout(() => {
       setShowActionModal(true);
@@ -815,45 +810,6 @@ const DocumentUploadScreen: React.FC<IProps> = ({
       </Modal>
 
       <Modal
-        visible={showCentreCodeModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => {}}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalBackground} />
-          <View style={styles.centreCodeModalContent}>
-            <Text style={styles.centreCodeModalTitle}>Enter Centre Code</Text>
-            <Text style={styles.centreCodeModalSubtitle}>
-              Please enter your centre identification code
-            </Text>
-
-            <TextInput
-              style={styles.centreCodeInput}
-              placeholder="Centre Code"
-              placeholderTextColor={colors.placeholderGray}
-              value={centreCodeInput}
-              onChangeText={setCentreCodeInput}
-              autoCapitalize="characters"
-              maxLength={10}
-              onSubmitEditing={handleCentreCodeSubmit}
-            />
-
-            <TouchableOpacity
-              style={styles.centreCodeSubmitButton}
-              onPress={handleCentreCodeSubmit}>
-              <LinearGradient
-                colors={['#00D084', '#00B86E']}
-                start={{x: 0, y: 0}}
-                end={{x: 1, y: 0}}
-                style={styles.centreCodeSubmitButtonGradient}>
-                <Text style={styles.centreCodeSubmitButtonText}>Submit</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-
-      <Modal
         visible={showDeleteConfirmModal}
         transparent
         animationType="fade"
@@ -905,6 +861,7 @@ const DocumentUploadScreen: React.FC<IProps> = ({
         ]}
         buttonGradient={[colors.danger1, colors.danger2]}
         numberBackgroundColor={colors.danger1}
+        onRecapture={scan}
       />
 
       <ExistingDocumentModal
@@ -969,11 +926,6 @@ const DocumentUploadScreen: React.FC<IProps> = ({
                 <View style={styles.allDetailsItem}>
                   <Text style={styles.allDetailsItemLabel}>👤 Full Name</Text>
                   <Text style={styles.allDetailsItemValue}>{fullName}</Text>
-                </View>
-
-                <View style={styles.allDetailsItem}>
-                  <Text style={styles.allDetailsItemLabel}>🏢 Centre Code</Text>
-                  <Text style={styles.allDetailsItemValue}>{enteredCentreCode}</Text>
                 </View>
               </View>
 
@@ -1077,16 +1029,6 @@ const DocumentUploadScreen: React.FC<IProps> = ({
                         <Text style={styles.detailValue}>{fullName}</Text>
                       </View>
 
-                      <View style={styles.detailDivider} />
-
-                      <View style={styles.detailRow}>
-                        <View style={styles.detailLabelContainer}>
-                          <Text style={styles.detailLabelIcon}>🏢</Text>
-                          <Text style={styles.detailLabel}>Centre Code</Text>
-                        </View>
-                        <Text style={styles.detailValue}>{enteredCentreCode}</Text>
-                      </View>
-
                       {allTextFields.length > 0 && (
                         <>
                           <View style={styles.detailDivider} />
@@ -1168,7 +1110,6 @@ const DocumentUploadScreen: React.FC<IProps> = ({
         onClose={handleAlertModalClose}
       />
 
-      {/* Full-screen loader while SDK is initializing */}
       <Modal
         visible={isSDKInitializing}
         transparent

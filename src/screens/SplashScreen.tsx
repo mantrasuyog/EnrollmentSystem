@@ -271,20 +271,16 @@ const SplashScreen: React.FC<SplashScreenProps> = ({
         end={{ x: 1, y: 1 }}
         style={styles.gradient}
       >
-        {/* Floating Particles */}
         {[...Array(8)].map((_, i) => (
           <Particle key={i} index={i} opacityAnim={opacityAnim} />
         ))}
 
         <View style={styles.contentContainer}>
-          {/* Main Icon Container */}
           <View style={styles.iconWrapper}>
-            {/* Ripple Effects */}
             <Ripple delay={0} />
             <Ripple delay={500} />
             <Ripple delay={1000} />
 
-            {/* Rotating Ring */}
             <Animated.View
               style={[
                 styles.rotatingRing,
@@ -302,7 +298,6 @@ const SplashScreen: React.FC<SplashScreenProps> = ({
               />
             </Animated.View>
 
-            {/* Glow Effect */}
             <Animated.View
               style={[
                 styles.glowCircle,
@@ -313,7 +308,6 @@ const SplashScreen: React.FC<SplashScreenProps> = ({
               ]}
             />
 
-            {/* Main Icon */}
             <Animated.View
               style={[
                 styles.mainIcon,
@@ -333,14 +327,12 @@ const SplashScreen: React.FC<SplashScreenProps> = ({
               </LinearGradient>
             </Animated.View>
 
-            {/* Corner Accents */}
             <View style={[styles.cornerAccent, styles.topLeftCorner]} />
             <View style={[styles.cornerAccent, styles.topRightCorner]} />
             <View style={[styles.cornerAccent, styles.bottomLeftCorner]} />
             <View style={[styles.cornerAccent, styles.bottomRightCorner]} />
           </View>
 
-          {/* Text Content */}
           <Animated.View
             style={[
               styles.textContainer,
@@ -366,7 +358,6 @@ const SplashScreen: React.FC<SplashScreenProps> = ({
             </View>
           </Animated.View>
 
-          {/* Progress Bar */}
           <Animated.View
             style={[
               styles.progressContainer,
@@ -399,7 +390,6 @@ const SplashScreen: React.FC<SplashScreenProps> = ({
           </Animated.View>
         </View>
 
-        {/* Bottom Branding */}
         <Animated.View
           style={[
             styles.brandingContainer,

@@ -24,6 +24,8 @@ import Tech5Face, {
   CaptureConfig,
   FaceData,
 } from '../modules/Tech5Face';
+import RNFS from 'react-native-fs';
+import ImageResizer from 'react-native-image-resizer';
 
 interface Tech5FaceCaptureScreenProps {
   navigation?: any;
@@ -40,7 +42,6 @@ type CaptureMode = 'standard' | 'icao' | 'liveness' | 'quick';
 
 const {width: SCREEN_WIDTH, height: SCREEN_HEIGHT} = Dimensions.get('window');
 
-// Font family constants
 const FONTS = {
   bold: 'Sen-Bold',
   semiBold: 'Sen-SemiBold',
@@ -56,7 +57,6 @@ const Tech5FaceCaptureScreen: React.FC<Tech5FaceCaptureScreenProps> = ({
   const dispatch = useDispatch();
   const hookNavigation = useNavigation();
   const navigation = propNavigation || hookNavigation;
-  // Select the latest scan from Redux
   const latestScan = useSelector((state: any) => {
     const scans = state.scan?.scans || [];
     return scans.length > 0 ? scans[scans.length - 1] : null;
@@ -71,13 +71,17 @@ const Tech5FaceCaptureScreen: React.FC<Tech5FaceCaptureScreenProps> = ({
   const [showExistingFaceModal, setShowExistingFaceModal] = useState(false);
   const [existingFaceImage, setExistingFaceImage] = useState<string | null>(null);
   const [showSpoofModal, setShowSpoofModal] = useState(false);
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [errorModalData, setErrorModalData] = useState<{title: string; message: string; icon: string}>({
+    title: 'Error',
+    message: '',
+    icon: '❌',
+  });
 
-  // Get existing face enrollment from Redux
   const existingEnrolledFace = useSelector(
     (state: any) => state.faceEnrollment?.enrolledImageBase64,
   );
 
-  // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
   const scaleAnim = useRef(new Animated.Value(0.95)).current;
@@ -88,7 +92,6 @@ const Tech5FaceCaptureScreen: React.FC<Tech5FaceCaptureScreenProps> = ({
   const captureConfig = route?.params?.config || {};
   const onCaptureComplete = route?.params?.onCaptureComplete;
 
-  // Entry animation
   useEffect(() => {
     Animated.parallel([
       Animated.timing(fadeAnim, {
@@ -110,7 +113,6 @@ const Tech5FaceCaptureScreen: React.FC<Tech5FaceCaptureScreenProps> = ({
     ]).start();
   }, []);
 
-  // Pulse animation for capture button
   useEffect(() => {
     const pulse = Animated.loop(
       Animated.sequence([
@@ -132,7 +134,6 @@ const Tech5FaceCaptureScreen: React.FC<Tech5FaceCaptureScreenProps> = ({
     return () => pulse.stop();
   }, [isCapturing, captureResult]);
 
-  // Modal animation
   useEffect(() => {
     if (showDetailModal) {
       Animated.parallel([
@@ -154,7 +155,157 @@ const Tech5FaceCaptureScreen: React.FC<Tech5FaceCaptureScreenProps> = ({
     }
   }, [showDetailModal]);
 
-  // Check liveness by sending image to liveness API
+  const compressImageBase64 = useCallback(async (base64Image: string): Promise<string> => {
+    const getBase64SizeInBytes = (base64: string): number => {
+      return Math.ceil(base64.length * 0.75);
+    };
+
+    const TARGET_SIZE_BYTES = 400 * 1024;
+
+    const originalSize = getBase64SizeInBytes(base64Image);
+
+    if (__DEV__) {
+      console.log('Original image size:', (originalSize / 1024).toFixed(2), 'KB');
+    }
+
+    if (originalSize <= TARGET_SIZE_BYTES) {
+      if (__DEV__) {
+        console.log('Image already under 400KB, no compression needed');
+      }
+      return base64Image;
+    }
+
+    try {
+      const tempInputPath = `${RNFS.CachesDirectoryPath}/temp_face_input_${Date.now()}.jpg`;
+      await RNFS.writeFile(tempInputPath, base64Image, 'base64');
+
+      if (__DEV__) {
+        console.log('Temp file created at:', tempInputPath);
+      }
+
+      let compressedBase64 = base64Image;
+      let currentSize = originalSize;
+      const tempFiles: string[] = [tempInputPath];
+
+      const qualityLevels = [40, 30, 25, 20, 15, 10, 5];
+
+      for (let i = 0; i < qualityLevels.length && currentSize > TARGET_SIZE_BYTES; i++) {
+        const quality = qualityLevels[i];
+
+        if (__DEV__) {
+          console.log(`\nCompression attempt ${i + 1} with quality: ${quality}%`);
+        }
+
+        try {
+          const resizedImage = await ImageResizer.createResizedImage(
+            `file://${tempInputPath}`,
+            480,
+            640,
+            'JPEG',
+            quality,
+            0
+          );
+
+          if (__DEV__) {
+            console.log('Resized image created:', resizedImage.path);
+            console.log('Resized image reported size:', resizedImage.size, 'bytes');
+          }
+
+          const resizedPath = resizedImage.path.replace('file://', '');
+          compressedBase64 = await RNFS.readFile(resizedPath, 'base64');
+          currentSize = getBase64SizeInBytes(compressedBase64);
+
+          if (__DEV__) {
+            console.log(`  Result base64 size: ${(currentSize / 1024).toFixed(2)} KB`);
+          }
+
+          tempFiles.push(resizedPath);
+
+          if (currentSize <= TARGET_SIZE_BYTES) {
+            if (__DEV__) {
+              console.log('Target size achieved!');
+            }
+            break;
+          }
+
+        } catch (resizeError) {
+          if (__DEV__) {
+            console.error('Resize attempt failed:', resizeError);
+          }
+        }
+      }
+
+      if (currentSize > TARGET_SIZE_BYTES) {
+        const smallerDimensions = [
+          { w: 320, h: 420 },
+          { w: 240, h: 320 },
+          { w: 160, h: 210 },
+        ];
+
+        for (const dim of smallerDimensions) {
+          if (currentSize <= TARGET_SIZE_BYTES) break;
+
+          if (__DEV__) {
+            console.log(`\nTrying smaller dimensions: ${dim.w}x${dim.h} with quality 20%`);
+          }
+
+          try {
+            const resizedImage = await ImageResizer.createResizedImage(
+              `file://${tempInputPath}`,
+              dim.w,
+              dim.h,
+              'JPEG',
+              20,
+              0
+            );
+
+            const resizedPath = resizedImage.path.replace('file://', '');
+            compressedBase64 = await RNFS.readFile(resizedPath, 'base64');
+            currentSize = getBase64SizeInBytes(compressedBase64);
+
+            if (__DEV__) {
+              console.log(`  Result size: ${(currentSize / 1024).toFixed(2)} KB`);
+            }
+
+            tempFiles.push(resizedPath);
+
+          } catch (e) {
+            if (__DEV__) {
+              console.error('Small dimension resize failed:', e);
+            }
+          }
+        }
+      }
+
+      for (const tempFile of tempFiles) {
+        try {
+          await RNFS.unlink(tempFile);
+        } catch (e) {
+        }
+      }
+
+      const finalSize = getBase64SizeInBytes(compressedBase64);
+      if (__DEV__) {
+        console.log('\n=== Compression Summary ===');
+        console.log('Original size:', (originalSize / 1024).toFixed(2), 'KB');
+        console.log('Final size:', (finalSize / 1024).toFixed(2), 'KB');
+        console.log('Compression:', ((1 - finalSize / originalSize) * 100).toFixed(1), '% reduction');
+        if (finalSize > TARGET_SIZE_BYTES) {
+          console.warn('Warning: Image still exceeds 400KB after all compression attempts.');
+        } else {
+          console.log('SUCCESS: Image compressed to under 400KB');
+        }
+      }
+
+      return compressedBase64;
+    } catch (error) {
+      if (__DEV__) {
+        console.error('Image compression error:', error);
+      }
+      return base64Image;
+    }
+  }, []);
+
   const checkLiveness = useCallback(async (imageBase64: string) => {
     if (!imageBase64) {
       Alert.alert('Error', 'No image available for liveness check');
@@ -163,145 +314,84 @@ const Tech5FaceCaptureScreen: React.FC<Tech5FaceCaptureScreenProps> = ({
 
     setIsCheckingLiveness(true);
     try {
-      const fullUrl = 'http://10.65.21.80:8080/check_liveness';
-      
+      const fullUrl = 'https://asim-demo.mantraidentity.com/api/v1/biometric/analyze';
+
       if (__DEV__) {
         console.log('Sending liveness check request to:', fullUrl);
-        console.log('Image base64 length:', imageBase64.length);
+        console.log('Original image base64 length:', imageBase64.length);
       }
 
-      // Create FormData exactly like Postman does
-      const formData = new FormData();
-      
-      // In React Native, we can pass the base64 directly with uri
-      // The fetch API will handle the base64 encoding
-      formData.append('image', {
-        uri: `data:image/jpeg;base64,${imageBase64}`,
-        type: 'image/jpeg',
-        name: 'face_image.jpg',
-      } as any);
+      const compressedImageBase64 = await compressImageBase64(imageBase64);
 
       if (__DEV__) {
-        console.log('FormData created with base64 image');
+        console.log('Compressed image base64 length:', compressedImageBase64.length);
+        const sizeInMB = (compressedImageBase64.length * 0.75 / 1024 / 1024).toFixed(2);
+        console.log('Compressed image size:', sizeInMB, 'MB');
       }
 
-      // Send using fetch (same as Postman request structure)
-      const response = await fetch(fullUrl, {
-        method: 'POST',
-        body: formData,
-        // Don't set Content-Type header - fetch will set it with boundary automatically
+      const sessionId = `session_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+
+      const requestPayload = {
+        image_bytes: compressedImageBase64,
+        modality: 'FACE',
+        analysis_type: 'LIVENESS',
+        client_id: 'enrollment-app-client',
+        client_ts: new Date().toISOString(),
+        capture_profile: {
+          device_type: Platform.OS === 'android' ? 'android' : 'ios',
+          sdk_version: '1.0.0',
+          session_id: sessionId,
+        },
+      };
+
+      if (__DEV__) {
+        console.log('Request payload prepared with session:', sessionId);
+      }
+
+      const response = await axios.post(fullUrl, requestPayload, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        timeout: 30000,
       });
 
-      // Check if response is ok
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Server error ${response.status}: ${errorText}`);
-      }
-
-      // Get response as text
-      const result = await response.text();
+      const result = response.data;
 
       if (__DEV__) {
-        console.log('Liveness Check Result (raw):', result);
+        console.log('Liveness Check Result:', JSON.stringify(result, null, 2));
       }
 
       setLivenessResult(result);
 
-      // Parse the result to extract probability
-      let displayMessage = result;
-      try {
-        // Try parsing as JSON first
-        const parsedResult = JSON.parse(result);
-        if (__DEV__) {
-          console.log('Parsed JSON:', parsedResult);
-        }
-        
-        // Check for probability field in various formats
-        let probability = 
-          parsedResult.probability || 
-          parsedResult.Probability || 
-          parsedResult.liveness || 
-          parsedResult.Liveness ||
-          parsedResult.score ||
-          parsedResult.Score;
-        
-        if (probability !== undefined) {
-          // Handle scientific notation by converting to number
-          if (typeof probability === 'string') {
-            probability = parseFloat(probability);
-          }
-          
-          if (__DEV__) {
-            console.log('Extracted probability:', probability);
-          }
-          
-          const percentage = (probability * 100).toFixed(4);
-          displayMessage = `Liveness Probability: ${percentage}%\n\nConfidence Score: ${probability}`;
-        } else {
-          // If no probability field found, show the whole JSON
-          displayMessage = JSON.stringify(parsedResult, null, 2);
-        }
-      } catch (parseError) {
-        // Not JSON, check if it's a plain number
-        const cleanResult = result.trim();
-        const probability = parseFloat(cleanResult);
-        
-        if (__DEV__) {
-          console.log('Trying to parse as plain number:', cleanResult, 'Result:', probability);
-        }
-        
-        if (!isNaN(probability)) {
-          if (probability >= 0 && probability <= 1) {
-            const percentage = (probability * 100).toFixed(4);
-            displayMessage = `Liveness Probability: ${percentage}%`;
-          } else if (probability > 1 && probability < 100) {
-            displayMessage = `Liveness Probability: ${probability.toFixed(2)}%`;
-          }
-        }
-      }
+      const decision = result.decision;
+      const confidence = result.confidence;
+      const livenessDetails = result.details;
 
       if (__DEV__) {
-        console.log('Final display message:', displayMessage);
+        console.log('Decision:', decision);
+        console.log('Confidence:', confidence);
+        console.log('Liveness Details:', livenessDetails);
       }
 
-      // Extract probability to check if it's below 0.5
-      let extractedProbability: number | null = null;
-      try {
-        const parsedResult = JSON.parse(result);
-        let probability = 
-          parsedResult.probability || 
-          parsedResult.Probability || 
-          parsedResult.liveness || 
-          parsedResult.Liveness ||
-          parsedResult.score ||
-          parsedResult.Score;
-        
-        if (probability !== undefined) {
-          if (typeof probability === 'string') {
-            probability = parseFloat(probability);
-          }
-          extractedProbability = probability;
-        }
-      } catch (e) {
-        const cleanResult = result.trim();
-        const probability = parseFloat(cleanResult);
-        if (!isNaN(probability)) {
-          extractedProbability = probability;
-        }
-      }
+      const isGenuine = decision && decision.toUpperCase() === 'GENUINE';
+      const hasHighConfidence = confidence !== undefined && confidence > 0.5;
 
       if (__DEV__) {
-        console.log('Extracted probability:', extractedProbability);
-        console.log('Liveness result:', displayMessage);
+        console.log('Is Genuine:', isGenuine);
+        console.log('Has High Confidence:', hasHighConfidence);
       }
 
-      // Check if spoof image detected (probability < 0.5)
-      if (extractedProbability !== null && extractedProbability < 0.5) {
+      if (!isGenuine || !hasHighConfidence) {
+        if (__DEV__) {
+          console.log('Spoof detected - Decision:', decision, 'Confidence:', confidence);
+        }
         setShowSpoofModal(true);
         return false;
       }
 
-      // If probability >= 0.5, continue with normal flow (no alert, just proceed)
+      if (__DEV__) {
+        console.log('Liveness check passed - proceeding');
+      }
       return true;
     } catch (err: any) {
       if (__DEV__) {
@@ -309,24 +399,120 @@ const Tech5FaceCaptureScreen: React.FC<Tech5FaceCaptureScreenProps> = ({
           message: err.message,
           code: err.code,
           name: err.name,
+          response: err.response?.data,
+          status: err.response?.status,
         });
       }
 
-      // Provide more detailed error messages
-      let errorMsg = 'Liveness check failed';
-      
-      if (err.message) {
-        errorMsg = err.message;
+      const parseHtmlResponse = (html: string): {title: string; message: string} => {
+        let title = 'Server Error';
+        let message = 'An unexpected error occurred';
+
+        const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+        if (titleMatch && titleMatch[1]) {
+          title = titleMatch[1].trim();
+        }
+
+        const h1Match = html.match(/<h1[^>]*>([^<]+)<\/h1>/i);
+        const h2Match = html.match(/<h2[^>]*>([^<]+)<\/h2>/i);
+
+        if (h1Match && h1Match[1]) {
+          message = h1Match[1].trim();
+        } else if (h2Match && h2Match[1]) {
+          message = h2Match[1].trim();
+        }
+
+        const errorMsgMatch = html.match(/<(?:p|div)[^>]*class="[^"]*error[^"]*"[^>]*>([^<]+)<\/(?:p|div)>/i);
+        if (errorMsgMatch && errorMsgMatch[1]) {
+          message = errorMsgMatch[1].trim();
+        }
+
+        if (message === 'An unexpected error occurred') {
+          const bodyMatch = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+          if (bodyMatch && bodyMatch[1]) {
+            const plainText = bodyMatch[1].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+            if (plainText.length > 0 && plainText.length < 200) {
+              message = plainText;
+            }
+          }
+        }
+
+        return {title, message};
+      };
+
+      const isHtmlResponse = (data: any): boolean => {
+        if (typeof data === 'string') {
+          return data.trim().startsWith('<!DOCTYPE') ||
+                 data.trim().startsWith('<html') ||
+                 data.trim().startsWith('<HTML') ||
+                 data.includes('<html') ||
+                 data.includes('<body');
+        }
+        return false;
+      };
+
+      let errorTitle = 'Liveness Check Failed';
+      let errorMsg = 'An error occurred during liveness verification';
+      let errorIcon = '❌';
+
+      if (err.response) {
+        const status = err.response.status;
+        const data = err.response.data;
+
+        if (isHtmlResponse(data)) {
+          const parsed = parseHtmlResponse(data);
+          errorTitle = parsed.title || `Error ${status}`;
+          errorMsg = parsed.message;
+
+          if (status >= 500) {
+            errorIcon = '🔧';
+            if (errorMsg === 'An unexpected error occurred') {
+              errorMsg = 'The server encountered an internal error. Please try again later.';
+            }
+          } else if (status === 404) {
+            errorIcon = '🔍';
+            errorMsg = 'The liveness service endpoint was not found.';
+          } else if (status === 401 || status === 403) {
+            errorIcon = '🔒';
+            errorMsg = 'Authentication failed. Please check your credentials.';
+          } else if (status === 400) {
+            errorIcon = '⚠️';
+            if (errorMsg === 'An unexpected error occurred') {
+              errorMsg = 'Invalid request. Please try capturing the image again.';
+            }
+          }
+        } else if (typeof data === 'object') {
+          errorMsg = data?.message || data?.error || data?.detail || JSON.stringify(data);
+        } else if (typeof data === 'string') {
+          errorMsg = data;
+        }
+
+        errorTitle = `Error ${status}`;
       } else if (err.code === 'ECONNREFUSED') {
-        errorMsg = 'Connection refused. The server may not be running.';
+        errorIcon = '🔌';
+        errorTitle = 'Connection Refused';
+        errorMsg = 'Unable to connect to the liveness server. Please check if the server is running.';
       } else if (err.code === 'ENOTFOUND' || err.code === 'ERR_NETWORK') {
-        errorMsg = 'Network error. Cannot reach the server at http://10.65.21.80:8080';
-      } else {
-        errorMsg = 'Unknown error occurred';
+        errorIcon = '📡';
+        errorTitle = 'Network Error';
+        errorMsg = 'Cannot reach the liveness server. Please check your internet connection.';
+      } else if (err.code === 'ECONNABORTED') {
+        errorIcon = '⏱️';
+        errorTitle = 'Request Timeout';
+        errorMsg = 'The request took too long to complete. Please try again.';
+      } else if (err.message) {
+        errorMsg = err.message;
       }
 
       console.error('Liveness Check Error:', errorMsg);
-      Alert.alert('Liveness Check Failed', errorMsg);
+
+      setErrorModalData({
+        title: errorTitle,
+        message: errorMsg,
+        icon: errorIcon,
+      });
+      setShowErrorModal(true);
+
       return false;
     } finally {
       setIsCheckingLiveness(false);
@@ -344,7 +530,6 @@ const Tech5FaceCaptureScreen: React.FC<Tech5FaceCaptureScreenProps> = ({
     setCaptureResult(null);
 
     try {
-      // Check camera permission first
       const hasPermission = await Tech5Face.checkCameraPermission();
       if (!hasPermission) {
         await Tech5Face.requestCameraPermission();
@@ -385,16 +570,13 @@ const Tech5FaceCaptureScreen: React.FC<Tech5FaceCaptureScreenProps> = ({
     }
   }, [selectedMode, captureConfig, onCaptureComplete]);
 
-  // Check for existing face enrollment and show modal if exists
   const checkExistingFaceAndCapture = useCallback(() => {
-    // Check Redux first, then SQLite as fallback
     const existingFace = existingEnrolledFace || getFaceEnrollment();
 
     if (existingFace) {
       setExistingFaceImage(existingFace);
       setShowExistingFaceModal(true);
     } else {
-      // No existing face, proceed with capture
       handleCapture();
     }
   }, [existingEnrolledFace, handleCapture]);
@@ -666,7 +848,6 @@ const Tech5FaceCaptureScreen: React.FC<Tech5FaceCaptureScreenProps> = ({
     );
   };
 
-  // Modal for existing face enrollment
   const renderExistingFaceModal = () => {
     if (!existingFaceImage) return null;
 
@@ -703,7 +884,6 @@ const Tech5FaceCaptureScreen: React.FC<Tech5FaceCaptureScreenProps> = ({
                 style={styles.enrollNewFaceButton}
                 onPress={() => {
                   setShowExistingFaceModal(false);
-                  // Clear existing face and start new capture
                   dispatch(clearEnrolledImage());
                   handleCapture();
                 }}
@@ -717,7 +897,6 @@ const Tech5FaceCaptureScreen: React.FC<Tech5FaceCaptureScreenProps> = ({
                 style={styles.keepExistingButton}
                 onPress={() => {
                   setShowExistingFaceModal(false);
-                  // Set the existing face as capture result to show it
                   setCaptureResult({
                     success: true,
                     imageBase64: existingFaceImage,
@@ -744,7 +923,6 @@ const Tech5FaceCaptureScreen: React.FC<Tech5FaceCaptureScreenProps> = ({
     );
   };
 
-  // Modal for spoof image detection
   const renderSpoofModal = () => {
     return (
       <Modal
@@ -773,7 +951,6 @@ const Tech5FaceCaptureScreen: React.FC<Tech5FaceCaptureScreenProps> = ({
                 onPress={() => {
                   setShowSpoofModal(false);
                   setCaptureResult(null);
-                  // Restart capture
                   handleCapture();
                 }}
                 activeOpacity={0.85}>
@@ -789,6 +966,105 @@ const Tech5FaceCaptureScreen: React.FC<Tech5FaceCaptureScreenProps> = ({
               activeOpacity={0.85}>
               <Text style={styles.cancelSpoofText}>Cancel</Text>
             </TouchableOpacity>
+          </Animated.View>
+        </View>
+      </Modal>
+    );
+  };
+
+  const renderErrorModal = () => {
+    const errorModalScaleAnim = useRef(new Animated.Value(0.8)).current;
+    const errorModalOpacityAnim = useRef(new Animated.Value(0)).current;
+
+    useEffect(() => {
+      if (showErrorModal) {
+        Animated.parallel([
+          Animated.spring(errorModalScaleAnim, {
+            toValue: 1,
+            friction: 8,
+            tension: 40,
+            useNativeDriver: true,
+          }),
+          Animated.timing(errorModalOpacityAnim, {
+            toValue: 1,
+            duration: 300,
+            useNativeDriver: true,
+          }),
+        ]).start();
+      } else {
+        errorModalScaleAnim.setValue(0.8);
+        errorModalOpacityAnim.setValue(0);
+      }
+    }, [showErrorModal]);
+
+    return (
+      <Modal
+        visible={showErrorModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowErrorModal(false)}>
+        <View style={styles.modalOverlay}>
+          <Animated.View
+            style={[
+              styles.errorModalContainer,
+              {
+                opacity: errorModalOpacityAnim,
+                transform: [{scale: errorModalScaleAnim}],
+              },
+            ]}>
+            {/* Animated Icon Container */}
+            <View style={styles.errorModalIconContainer}>
+              <Animated.View
+                style={[
+                  styles.errorModalIconCircle,
+                  {
+                    transform: [
+                      {
+                        rotate: errorModalOpacityAnim.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: ['0deg', '360deg'],
+                        }),
+                      },
+                    ],
+                  },
+                ]}>
+                <Text style={styles.errorModalIcon}>{errorModalData.icon}</Text>
+              </Animated.View>
+            </View>
+
+            {/* Error Title */}
+            <Text style={styles.errorModalTitle}>{errorModalData.title}</Text>
+
+            {/* Error Message */}
+            <Text style={styles.errorModalMessage}>{errorModalData.message}</Text>
+
+            {/* Divider */}
+            <View style={styles.errorModalDivider} />
+
+            {/* Action Buttons */}
+            <View style={styles.errorModalActions}>
+              {/* Retry Button */}
+              <TouchableOpacity
+                style={styles.errorModalRetryButton}
+                onPress={() => {
+                  setShowErrorModal(false);
+                  if (captureResult?.imageBase64) {
+                    checkLiveness(captureResult.imageBase64);
+                  }
+                }}
+                activeOpacity={0.85}>
+                <Text style={styles.errorModalRetryIcon}>🔄</Text>
+                <Text style={styles.errorModalRetryText}>Try Again</Text>
+              </TouchableOpacity>
+
+              {/* Dismiss Button */}
+              <TouchableOpacity
+                style={styles.errorModalDismissButton}
+                onPress={() => setShowErrorModal(false)}
+                activeOpacity={0.85}>
+                <Text style={styles.errorModalDismissText}>Dismiss</Text>
+              </TouchableOpacity>
+            </View>
           </Animated.View>
         </View>
       </Modal>
@@ -980,7 +1256,6 @@ const Tech5FaceCaptureScreen: React.FC<Tech5FaceCaptureScreenProps> = ({
               isCheckingLiveness && styles.continueButtonDisabled,
             ]}
             onPress={async () => {
-              // Check liveness before continuing
               if (!captureResult.imageBase64) {
                 Alert.alert('Error', 'No image available');
                 return;
@@ -994,7 +1269,6 @@ const Tech5FaceCaptureScreen: React.FC<Tech5FaceCaptureScreenProps> = ({
               if (captureResult.imageBase64) {
                 dispatch(setEnrolledImage(captureResult.imageBase64));
               }
-              // Call the callback to move to finger capture step
               if (onFaceCaptureComplete) {
                 onFaceCaptureComplete();
               } else if (navigation) {
@@ -1026,6 +1300,9 @@ const Tech5FaceCaptureScreen: React.FC<Tech5FaceCaptureScreenProps> = ({
 
       {/* Spoof Detection Modal */}
       {renderSpoofModal()}
+
+      {/* Error Modal */}
+      {renderErrorModal()}
     </SafeAreaView>
   );
 };
@@ -1041,7 +1318,6 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     paddingBottom: 20,
   },
-  // Header Styles
   header: {
     alignItems: 'center',
     marginBottom: 10,
@@ -1075,7 +1351,6 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.regular,
     color: '#64748B',
   },
-  // Section Title
   sectionTitle: {
     fontSize: 16,
     fontFamily: FONTS.semiBold,
@@ -1161,7 +1436,6 @@ const styles = StyleSheet.create({
     color: '#64748B',
     flex: 1,
   },
-  // Empty Capture Styles
   emptyCapture: {
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
@@ -1195,7 +1469,6 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.regular,
     color: '#94A3B8',
   },
-  // Capture Button Styles
   captureButton: {
     backgroundColor: '#6366F1',
     paddingVertical: 14,
@@ -1236,7 +1509,6 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.regular,
     marginTop: 2,
   },
-  // Error Styles
   errorContainer: {
     backgroundColor: '#FEF2F2',
     padding: 10,
@@ -1257,7 +1529,6 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.medium,
     flex: 1,
   },
-  // Warning Styles
   warningContainer: {
     backgroundColor: '#FFFBEB',
     padding: 10,
@@ -1278,7 +1549,6 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.medium,
     flex: 1,
   },
-  // Results Styles
   resultsContainer: {
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
@@ -1330,6 +1600,7 @@ const styles = StyleSheet.create({
     height: 200,
     borderRadius: 12,
     backgroundColor: '#E2E8F0',
+    transform: [{scaleX: -1}], // Flip horizontally to show actual face (not mirrored)
   },
   complianceBadgeOverlay: {
     flexDirection: 'row',
@@ -1359,7 +1630,6 @@ const styles = StyleSheet.create({
   complianceBadgeTextBad: {
     color: '#DC2626',
   },
-  // View Detail Button
   viewDetailButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1392,7 +1662,6 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.bold,
     color: '#6366F1',
   },
-  // Continue Button Styles
   continueButton: {
     backgroundColor: '#22C55E',
     paddingVertical: 16,
@@ -1426,7 +1695,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
-  // Modal Styles
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(15, 23, 42, 0.75)',
@@ -1518,7 +1786,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontFamily: FONTS.bold,
   },
-  // Compliance Box Styles
   complianceBox: {
     padding: 16,
     borderRadius: 12,
@@ -1565,7 +1832,6 @@ const styles = StyleSheet.create({
     color: '#DC2626',
     marginTop: 4,
   },
-  // Quality Section Styles
   qualitySection: {
     backgroundColor: '#F8FAFC',
     borderRadius: 12,
@@ -1639,8 +1905,8 @@ const styles = StyleSheet.create({
     height: 160,
     borderRadius: 12,
     backgroundColor: '#E2E8F0',
+    transform: [{scaleX: -1}], // Flip horizontally to show actual face (not mirrored)
   },
-  // Existing Face Modal Styles
   existingFaceModalContainer: {
     backgroundColor: '#FFFFFF',
     borderRadius: 24,
@@ -1691,6 +1957,7 @@ const styles = StyleSheet.create({
     height: 180,
     borderRadius: 12,
     backgroundColor: '#E2E8F0',
+    transform: [{scaleX: -1}], // Flip horizontally to show actual face (not mirrored)
   },
   existingFaceActions: {
     gap: 12,
@@ -1753,7 +2020,6 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.semiBold,
     color: '#64748B',
   },
-  // Spoof Modal Styles
   spoofModalContainer: {
     marginHorizontal: 20,
     backgroundColor: '#FFFFFF',
@@ -1827,6 +2093,93 @@ const styles = StyleSheet.create({
   },
   cancelSpoofText: {
     fontSize: 14,
+    fontFamily: FONTS.semiBold,
+    color: '#64748B',
+  },
+  errorModalContainer: {
+    marginHorizontal: 20,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    padding: 28,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 8},
+    shadowOpacity: 0.2,
+    shadowRadius: 16,
+    elevation: 8,
+    maxWidth: 380,
+    width: '100%',
+  },
+  errorModalIconContainer: {
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  errorModalIconCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#FEF2F2',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 3,
+    borderColor: '#FECACA',
+  },
+  errorModalIcon: {
+    fontSize: 40,
+  },
+  errorModalTitle: {
+    fontSize: 20,
+    fontFamily: FONTS.bold,
+    color: '#1E293B',
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  errorModalMessage: {
+    fontSize: 14,
+    fontFamily: FONTS.regular,
+    color: '#64748B',
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 20,
+  },
+  errorModalDivider: {
+    height: 1,
+    backgroundColor: '#E2E8F0',
+    marginBottom: 20,
+  },
+  errorModalActions: {
+    gap: 12,
+  },
+  errorModalRetryButton: {
+    backgroundColor: '#6366F1',
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    shadowColor: '#6366F1',
+    shadowOffset: {width: 0, height: 4},
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  errorModalRetryIcon: {
+    fontSize: 18,
+  },
+  errorModalRetryText: {
+    fontSize: 16,
+    fontFamily: FONTS.bold,
+    color: '#FFFFFF',
+  },
+  errorModalDismissButton: {
+    paddingVertical: 12,
+    alignItems: 'center',
+    borderRadius: 12,
+    backgroundColor: '#F1F5F9',
+  },
+  errorModalDismissText: {
+    fontSize: 15,
     fontFamily: FONTS.semiBold,
     color: '#64748B',
   },

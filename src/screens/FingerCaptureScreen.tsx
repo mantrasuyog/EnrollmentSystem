@@ -1,4 +1,4 @@
-import React, {useState, useCallback, useEffect, useRef} from 'react';
+import React, {useState, useCallback, useEffect, useRef, useMemo} from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,7 @@ import {
   Animated,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
+import LinearGradient from 'react-native-linear-gradient';
 import {useSelector, useDispatch} from 'react-redux';
 import Tech5Finger, {
   CaptureResult,
@@ -73,7 +74,6 @@ const FingerCaptureScreen: React.FC<FingerCaptureScreenProps> = ({
   const fingerTemplates = useSelector(selectFingerTemplates);
   const fingerTemplatesForApi = useSelector(selectFingerTemplatesForApi);
 
-  // Get face enrolled image and scan data for API calls
   const existingEnrolledImage = useSelector((state: RootState) => state.faceEnrollment.enrolledImageBase64) as string | null;
   const scanData = useSelector((state: RootState) => state.scan.scans[0]);
 
@@ -105,8 +105,10 @@ const FingerCaptureScreen: React.FC<FingerCaptureScreenProps> = ({
   });
   const [showLowQualityModal, setShowLowQualityModal] = useState(false);
   const [lowQualityFingers, setLowQualityFingers] = useState<FingerData[]>([]);
+  const [showImagePreview, setShowImagePreview] = useState(false);
+  const [previewImage, setPreviewImage] = useState<{uri: string; title: string} | null>(null);
+  const imagePreviewAnim = useRef(new Animated.Value(0)).current;
 
-  // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
   const scaleAnim = useRef(new Animated.Value(0.95)).current;
@@ -127,7 +129,6 @@ const FingerCaptureScreen: React.FC<FingerCaptureScreenProps> = ({
     fingerEnrollment.rightThumb,
   ].filter(Boolean).length;
 
-  // Entry animation
   useEffect(() => {
     Animated.parallel([
       Animated.timing(fadeAnim, {
@@ -149,7 +150,6 @@ const FingerCaptureScreen: React.FC<FingerCaptureScreenProps> = ({
     ]).start();
   }, []);
 
-  // Progress animation
   useEffect(() => {
     Animated.timing(progressAnim, {
       toValue: enrolledCount / 4,
@@ -158,9 +158,7 @@ const FingerCaptureScreen: React.FC<FingerCaptureScreenProps> = ({
     }).start();
   }, [enrolledCount]);
 
-  // Pulse animation for capture button
   useEffect(() => {
-    // Check if the selected mode is already captured
     const isModeCaptured = (): boolean => {
       switch (selectedMode) {
         case 'left_slap':
@@ -196,7 +194,6 @@ const FingerCaptureScreen: React.FC<FingerCaptureScreenProps> = ({
     return () => pulse.stop();
   }, [isCapturing, selectedMode, fingerEnrollment]);
 
-  // Modal animation
   useEffect(() => {
     if (showConfirmModal) {
       Animated.spring(modalAnim, {
@@ -210,7 +207,6 @@ const FingerCaptureScreen: React.FC<FingerCaptureScreenProps> = ({
     }
   }, [showConfirmModal]);
 
-  // Reset modal animation
   useEffect(() => {
     if (showResetModal) {
       Animated.spring(resetModalAnim, {
@@ -224,7 +220,6 @@ const FingerCaptureScreen: React.FC<FingerCaptureScreenProps> = ({
     }
   }, [showResetModal]);
 
-  // Incomplete modal animation
   useEffect(() => {
     if (showIncompleteModal) {
       Animated.spring(incompleteModalAnim, {
@@ -238,7 +233,6 @@ const FingerCaptureScreen: React.FC<FingerCaptureScreenProps> = ({
     }
   }, [showIncompleteModal]);
 
-  // Low quality modal animation
   useEffect(() => {
     if (showLowQualityModal) {
       Animated.spring(lowQualityModalAnim, {
@@ -252,16 +246,14 @@ const FingerCaptureScreen: React.FC<FingerCaptureScreenProps> = ({
     }
   }, [showLowQualityModal]);
 
-  // Helper function to check if a finger has low quality (below 30 or N/A)
   const checkLowQualityFingers = useCallback((fingers: FingerData[]): FingerData[] => {
     return fingers.filter(finger => {
       const quality = finger.quality;
-      // Check if quality is undefined, null, or below 30
       if (quality === undefined || quality === null) {
-        return true; // N/A case
+        return true;
       }
       if (typeof quality === 'number' && quality < 30) {
-        return true; // Below 30 case
+        return true;
       }
       return false;
     });
@@ -324,7 +316,6 @@ const FingerCaptureScreen: React.FC<FingerCaptureScreenProps> = ({
         getNfiq2Quality: false,
       });
 
-      // Log the complete capture result format
       console.log('[FingerCapture] ========== CAPTURE RESULT FORMAT ==========');
       console.log('[FingerCapture] Mode:', selectedMode);
       console.log('[FingerCapture] Success:', result.success);
@@ -379,11 +370,9 @@ const FingerCaptureScreen: React.FC<FingerCaptureScreenProps> = ({
 
       dispatch(setFingerCapture({mode: selectedMode, data: captureData}));
 
-      // Store individual finger templates with title and base64
       if (result.fingers && result.fingers.length > 0) {
         dispatch(setFingerTemplatesFromCapture(result.fingers));
 
-        // Check for low quality fingers
         const lowQuality = checkLowQualityFingers(result.fingers);
         if (lowQuality.length > 0) {
           setLowQualityFingers(lowQuality);
@@ -411,7 +400,6 @@ const FingerCaptureScreen: React.FC<FingerCaptureScreenProps> = ({
       return;
     }
 
-    // Log stored finger templates data
     console.log('[FingerCapture] ========== STORED FINGER TEMPLATES ==========');
     console.log('[FingerCapture] Full Templates:', JSON.stringify(fingerTemplates, null, 2));
     console.log('[FingerCapture] Templates for API:', JSON.stringify(fingerTemplatesForApi, null, 2));
@@ -421,14 +409,12 @@ const FingerCaptureScreen: React.FC<FingerCaptureScreenProps> = ({
   }, [allFingersEnrolled, fingerTemplates, fingerTemplatesForApi]);
 
   const handleConfirmProceed = useCallback(async () => {
-    // Validate face enrollment
     if (!existingEnrolledImage) {
       setShowConfirmModal(false);
       setShowEnrollmentRequiredModal(true);
       return;
     }
 
-    // Validate scan data
     if (!scanData) {
       setShowConfirmModal(false);
       setAlertModal({
@@ -442,7 +428,6 @@ const FingerCaptureScreen: React.FC<FingerCaptureScreenProps> = ({
     try {
       setIsSubmitting(true);
 
-      // Parse scanned JSON
       let parsedScannedJson;
       try {
         parsedScannedJson = typeof scanData.scanned_json === 'string'
@@ -463,7 +448,6 @@ const FingerCaptureScreen: React.FC<FingerCaptureScreenProps> = ({
         scannedJsonObject = parsedScannedJson;
       }
 
-      // Clean name
       let cleanedName = scanData.Name || '';
       if (cleanedName.startsWith('Name\n')) {
         cleanedName = cleanedName.replace('Name\n', '').trim();
@@ -471,7 +455,6 @@ const FingerCaptureScreen: React.FC<FingerCaptureScreenProps> = ({
         cleanedName = cleanedName.replace('Name', '').trim();
       }
 
-      // First API call - User Registration
       const apiRequestBody = {
         center_code: scanData.Centre_Code,
         document_image: scanData.Document_Image,
@@ -483,7 +466,6 @@ const FingerCaptureScreen: React.FC<FingerCaptureScreenProps> = ({
 
       await apiService.post('/users/', apiRequestBody);
 
-      // Second API call - Biometric Enrollment
       const templateEnrollmentBody = {
         biometric_data: {
           biometrics: {
@@ -498,14 +480,11 @@ const FingerCaptureScreen: React.FC<FingerCaptureScreenProps> = ({
 
       await apiService.post('/biometric/enroll', templateEnrollmentBody);
 
-      // Clear existing enrollment status first, then set new value
       dispatch(resetUserEnrollment());
       dispatch(setUserEnrolled(true));
 
-      // Close the confirmation modal after successful API calls
       setShowConfirmModal(false);
 
-      // Call onCaptureComplete if provided (for standalone navigation use)
       if (onCaptureComplete && fingerEnrollment) {
         const allFingers: FingerData[] = [
           ...(fingerEnrollment.leftSlap?.fingers || []),
@@ -516,14 +495,12 @@ const FingerCaptureScreen: React.FC<FingerCaptureScreenProps> = ({
         onCaptureComplete({fingers: allFingers, success: true} as CaptureResult);
       }
 
-      // Move to Success step in Dashboard (step 3)
       if (onProceedToNext) {
         onProceedToNext();
       } else if (navigation) {
         navigation.goBack();
       }
     } catch (error: any) {
-      // Close the confirmation modal on error
       setShowConfirmModal(false);
 
       let errorMessage = 'Network error. Please check your connection and try again.';
@@ -803,6 +780,64 @@ const FingerCaptureScreen: React.FC<FingerCaptureScreenProps> = ({
     );
   };
 
+  // Parse scan data for display
+  const parsedScannedData = useMemo(() => {
+    if (!scanData?.scanned_json) return [];
+    try {
+      const parsed = typeof scanData.scanned_json === 'string'
+        ? JSON.parse(scanData.scanned_json)
+        : scanData.scanned_json;
+      if (Array.isArray(parsed)) {
+        return parsed;
+      }
+      return [];
+    } catch {
+      return [];
+    }
+  }, [scanData]);
+
+  // Clean name helper
+  const getCleanName = useCallback(() => {
+    let cleanedName = scanData?.Name || '';
+    if (cleanedName.startsWith('Name\n')) {
+      cleanedName = cleanedName.replace('Name\n', '').trim();
+    } else if (cleanedName.startsWith('Name')) {
+      cleanedName = cleanedName.replace('Name', '').trim();
+    }
+    return cleanedName;
+  }, [scanData]);
+
+  // Helper to get proper image URI with data prefix
+  const getImageUri = useCallback((imageData: string | undefined | null): string | null => {
+    if (!imageData) return null;
+    if (imageData.startsWith('data:image')) {
+      return imageData;
+    }
+    return `data:image/jpeg;base64,${imageData}`;
+  }, []);
+
+  // Image preview handlers
+  const handleOpenImagePreview = useCallback((uri: string, title: string) => {
+    setPreviewImage({uri, title});
+    setShowImagePreview(true);
+    Animated.timing(imagePreviewAnim, {
+      toValue: 1,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
+  }, [imagePreviewAnim]);
+
+  const handleCloseImagePreview = useCallback(() => {
+    Animated.timing(imagePreviewAnim, {
+      toValue: 0,
+      duration: 200,
+      useNativeDriver: true,
+    }).start(() => {
+      setShowImagePreview(false);
+      setPreviewImage(null);
+    });
+  }, [imagePreviewAnim]);
+
   const renderConfirmationModal = () => {
     const leftFingers = [
       ...(fingerEnrollment.leftSlap?.fingers || []),
@@ -827,92 +862,322 @@ const FingerCaptureScreen: React.FC<FingerCaptureScreenProps> = ({
         <View style={styles.modalOverlay}>
           <Animated.View
             style={[
-              styles.modalContainer,
+              styles.confirmModalContainer,
               {
                 opacity: modalAnim,
                 transform: [{scale: modalScale}],
               },
             ]}>
-            {/* Modal Header */}
-            <View style={styles.modalHeader}>
-              <View style={styles.modalIconCircle}>
-                <Text style={styles.modalIcon}>🔐</Text>
-              </View>
-              <Text style={styles.modalTitle}>Confirm Fingerprints</Text>
-              <Text style={styles.modalSubtitle}>
-                Review all captured fingerprints before proceeding
-              </Text>
-            </View>
+            {/* Close Button */}
+            <TouchableOpacity
+              style={styles.confirmModalCloseBtn}
+              onPress={() => setShowConfirmModal(false)}
+              disabled={isSubmitting}>
+              <Text style={styles.confirmModalCloseBtnText}>✕</Text>
+            </TouchableOpacity>
 
-            {/* Scrollable Content */}
             <ScrollView
-              style={styles.modalScrollView}
-              contentContainerStyle={styles.modalScrollContent}
+              style={styles.confirmModalScrollView}
+              contentContainerStyle={styles.confirmModalScrollContent}
               showsVerticalScrollIndicator={true}>
-              {/* Left Hand Section */}
-              <View style={styles.handSection}>
-                <View style={styles.handHeader}>
-                  <Text style={styles.handEmoji}>🤚</Text>
-                  <Text style={styles.handLabel}>Left Hand</Text>
-                  <Text style={styles.handCount}>
-                    {leftFingers.length} fingers
-                  </Text>
+
+              {/* Header with Gradient */}
+              <LinearGradient
+                colors={['#6366F1', '#8B5CF6', '#A855F7']}
+                start={{x: 0, y: 0}}
+                end={{x: 1, y: 1}}
+                style={styles.confirmModalHeader}>
+                <View style={styles.confirmModalIconCircle}>
+                  <Text style={styles.confirmModalIcon}>✓</Text>
                 </View>
-                <View style={styles.handFingersRow}>
-                  {leftFingers.map(finger => renderFingerImage(finger, true))}
+                <Text style={styles.confirmModalTitle}>Confirm Enrollment</Text>
+                <Text style={styles.confirmModalSubtitle}>
+                  Review all details before submitting
+                </Text>
+                <View style={styles.confirmModalBadge}>
+                  <Text style={styles.confirmModalBadgeText}>READY TO SUBMIT</Text>
+                </View>
+              </LinearGradient>
+
+              {/* Profile Image Section */}
+              <View style={styles.confirmProfileContainer}>
+                <View style={styles.confirmProfileWrapper}>
+                  <LinearGradient
+                    colors={['#6366F1', '#8B5CF6', '#A855F7']}
+                    style={styles.confirmProfileRing}>
+                    <View style={styles.confirmProfileInner}>
+                      {existingEnrolledImage && getImageUri(existingEnrolledImage) ? (
+                        <Image
+                          source={{uri: getImageUri(existingEnrolledImage)!}}
+                          style={styles.confirmProfileImage}
+                        />
+                      ) : scanData?.Portrait_Image && getImageUri(scanData.Portrait_Image) ? (
+                        <Image
+                          source={{uri: getImageUri(scanData.Portrait_Image)!}}
+                          style={styles.confirmProfileImage}
+                        />
+                      ) : (
+                        <View style={styles.confirmProfilePlaceholder}>
+                          <Text style={styles.confirmProfilePlaceholderText}>👤</Text>
+                        </View>
+                      )}
+                    </View>
+                  </LinearGradient>
+                  <View style={styles.confirmProfileBadge}>
+                    <Text style={styles.confirmProfileBadgeIcon}>✓</Text>
+                  </View>
                 </View>
               </View>
 
-              {/* Right Hand Section */}
-              <View style={styles.handSection}>
-                <View style={styles.handHeader}>
-                  <Text style={styles.handEmoji}>✋</Text>
-                  <Text style={styles.handLabel}>Right Hand</Text>
-                  <Text style={styles.handCount}>
-                    {rightFingers.length} fingers
-                  </Text>
+              {/* Registration Info Card */}
+              {scanData && (
+                <View style={styles.confirmRegistrationCard}>
+                  <View style={styles.confirmRegistrationItem}>
+                    <Text style={styles.confirmRegistrationLabel}>Registration Number</Text>
+                    <Text style={styles.confirmRegistrationValue}>
+                      {scanData.Registration_Number || 'N/A'}
+                    </Text>
+                  </View>
                 </View>
-                <View style={styles.handFingersRow}>
-                  {rightFingers.map(finger => renderFingerImage(finger, true))}
+              )}
+
+              {/* Scanned Data Details Section */}
+              {scanData && (
+                <View style={styles.confirmDetailsSection}>
+                  <Text style={styles.confirmDetailsSectionTitle}>Basic Information</Text>
+
+                  {getCleanName() && (
+                    <View style={styles.confirmDetailItem}>
+                      <Text style={styles.confirmDetailLabel}>Full Name:</Text>
+                      <Text style={styles.confirmDetailValue}>{getCleanName()}</Text>
+                    </View>
+                  )}
+
+                  {parsedScannedData.map((item: any, index: number) => (
+                    <View key={index} style={styles.confirmDetailItem}>
+                      <Text style={styles.confirmDetailLabel}>{item.name}:</Text>
+                      <Text style={styles.confirmDetailValue}>{item.value}</Text>
+                    </View>
+                  ))}
                 </View>
+              )}
+
+              {/* Documents Images Section */}
+              <View style={styles.confirmDocumentsSection}>
+                <Text style={styles.confirmDetailsSectionTitle}>Enrolled Documents</Text>
+
+                {/* ID Document Image - Full Width */}
+                {scanData?.Document_Image && getImageUri(scanData.Document_Image) && (
+                  <TouchableOpacity
+                    style={styles.confirmDocumentIdCard}
+                    activeOpacity={0.8}
+                    onPress={() => handleOpenImagePreview(getImageUri(scanData.Document_Image)!, 'ID Document')}>
+                    <View style={styles.confirmDocumentIdWrapper}>
+                      <Image
+                        source={{uri: getImageUri(scanData.Document_Image)!}}
+                        style={styles.confirmDocumentIdImage}
+                        resizeMode="cover"
+                      />
+                    </View>
+                    <View style={styles.confirmDocumentImageLabel}>
+                      <Text style={styles.confirmDocumentImageIcon}>🆔</Text>
+                      <Text style={styles.confirmDocumentImageText}>ID Document</Text>
+                      <Text style={styles.confirmDocumentTapHint}>(Tap to view)</Text>
+                    </View>
+                    <View style={styles.confirmDocumentImageBadge}>
+                      <Text style={styles.confirmDocumentImageBadgeText}>✓</Text>
+                    </View>
+                  </TouchableOpacity>
+                )}
+
+                <View style={styles.confirmDocumentImagesRow}>
+                  {/* Portrait Photo Image */}
+                  {scanData?.Portrait_Image && getImageUri(scanData.Portrait_Image) && (
+                    <TouchableOpacity
+                      style={styles.confirmDocumentImageCard}
+                      activeOpacity={0.8}
+                      onPress={() => handleOpenImagePreview(getImageUri(scanData.Portrait_Image)!, 'Portrait Photo')}>
+                      <View style={styles.confirmDocumentImageWrapper}>
+                        <Image
+                          source={{uri: getImageUri(scanData.Portrait_Image)!}}
+                          style={styles.confirmDocumentImage}
+                          resizeMode="cover"
+                        />
+                      </View>
+                      <View style={styles.confirmDocumentImageLabel}>
+                        <Text style={styles.confirmDocumentImageIcon}>📷</Text>
+                        <Text style={styles.confirmDocumentImageText}>Portrait</Text>
+                      </View>
+                      <View style={styles.confirmDocumentImageBadge}>
+                        <Text style={styles.confirmDocumentImageBadgeText}>✓</Text>
+                      </View>
+                    </TouchableOpacity>
+                  )}
+
+                  {/* Face Enrollment Image */}
+                  {existingEnrolledImage && getImageUri(existingEnrolledImage) && (
+                    <TouchableOpacity
+                      style={styles.confirmDocumentImageCard}
+                      activeOpacity={0.8}
+                      onPress={() => handleOpenImagePreview(getImageUri(existingEnrolledImage)!, 'Face Enrollment')}>
+                      <View style={styles.confirmDocumentImageWrapper}>
+                        <Image
+                          source={{uri: getImageUri(existingEnrolledImage)!}}
+                          style={styles.confirmDocumentImage}
+                          resizeMode="cover"
+                        />
+                      </View>
+                      <View style={styles.confirmDocumentImageLabel}>
+                        <Text style={styles.confirmDocumentImageIcon}>😊</Text>
+                        <Text style={styles.confirmDocumentImageText}>Face</Text>
+                      </View>
+                      <View style={styles.confirmDocumentImageBadge}>
+                        <Text style={styles.confirmDocumentImageBadgeText}>✓</Text>
+                      </View>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </View>
+
+              {/* Fingerprints Preview Section */}
+              <View style={styles.confirmFingerprintsSection}>
+                <Text style={styles.confirmDetailsSectionTitle}>Fingerprints Preview</Text>
+
+                {/* Left Hand */}
+                {leftFingers.length > 0 && (
+                  <View style={styles.confirmHandSection}>
+                    <View style={styles.confirmHandHeader}>
+                      <Text style={styles.confirmHandEmoji}>🤚</Text>
+                      <Text style={styles.confirmHandLabel}>Left Hand</Text>
+                      <Text style={styles.confirmHandCount}>{leftFingers.length} fingers</Text>
+                    </View>
+                    <View style={styles.confirmHandFingersRow}>
+                      {leftFingers.map(finger => renderFingerImage(finger, true))}
+                    </View>
+                  </View>
+                )}
+
+                {/* Right Hand */}
+                {rightFingers.length > 0 && (
+                  <View style={styles.confirmHandSection}>
+                    <View style={styles.confirmHandHeader}>
+                      <Text style={styles.confirmHandEmoji}>✋</Text>
+                      <Text style={styles.confirmHandLabel}>Right Hand</Text>
+                      <Text style={styles.confirmHandCount}>{rightFingers.length} fingers</Text>
+                    </View>
+                    <View style={styles.confirmHandFingersRow}>
+                      {rightFingers.map(finger => renderFingerImage(finger, true))}
+                    </View>
+                  </View>
+                )}
+              </View>
+
+              {/* Confirmation Text */}
+              <View style={styles.confirmSection}>
+                <Text style={styles.confirmText}>
+                  Do you want to proceed with this enrollment?
+                </Text>
               </View>
             </ScrollView>
 
-            {/* Confirmation Text */}
-            <View style={styles.confirmSection}>
-              <Text style={styles.confirmText}>
-                Do you want to proceed with these fingerprints?
-              </Text>
-            </View>
-
             {/* Modal Buttons */}
-            <View style={styles.modalButtons}>
+            <View style={styles.confirmModalButtons}>
               <TouchableOpacity
-                style={styles.modalButtonCancel}
+                style={styles.confirmModalButtonCancel}
                 onPress={() => setShowConfirmModal(false)}
                 activeOpacity={0.8}
                 disabled={isSubmitting}>
-                <Text style={styles.modalButtonCancelText}>Re-capture</Text>
+                <Text style={styles.confirmModalButtonCancelText}>Re-capture</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.modalButtonConfirm, isSubmitting && {opacity: 0.7}]}
+                style={[styles.confirmModalButtonConfirm, isSubmitting && {opacity: 0.7}]}
                 onPress={handleConfirmProceed}
                 activeOpacity={0.8}
                 disabled={isSubmitting}>
                 {isSubmitting ? (
-                  <View style={{flexDirection: 'row', alignItems: 'center', gap: 8}}>
+                  <LinearGradient
+                    colors={['#22C55E', '#16A34A']}
+                    start={{x: 0, y: 0}}
+                    end={{x: 1, y: 0}}
+                    style={styles.confirmModalButtonGradient}>
                     <ActivityIndicator color="#FFFFFF" size="small" />
-                    <Text style={styles.modalButtonConfirmText}>Submitting...</Text>
-                  </View>
+                    <Text style={styles.confirmModalButtonConfirmText}>Submitting...</Text>
+                  </LinearGradient>
                 ) : (
-                  <Text style={styles.modalButtonConfirmText}>
-                    Confirm & Proceed
-                  </Text>
+                  <LinearGradient
+                    colors={['#22C55E', '#16A34A']}
+                    start={{x: 0, y: 0}}
+                    end={{x: 1, y: 0}}
+                    style={styles.confirmModalButtonGradient}>
+                    <Text style={styles.confirmModalButtonConfirmText}>Confirm & Proceed</Text>
+                  </LinearGradient>
                 )}
               </TouchableOpacity>
             </View>
           </Animated.View>
         </View>
+      </Modal>
+    );
+  };
+
+  const renderImagePreviewModal = () => {
+    if (!previewImage) return null;
+
+    return (
+      <Modal
+        visible={showImagePreview}
+        transparent
+        animationType="none"
+        onRequestClose={handleCloseImagePreview}>
+        <Animated.View
+          style={[
+            styles.imagePreviewOverlay,
+            {
+              opacity: imagePreviewAnim,
+            },
+          ]}>
+          <TouchableOpacity
+            style={styles.imagePreviewCloseArea}
+            activeOpacity={1}
+            onPress={handleCloseImagePreview}>
+            <Animated.View
+              style={[
+                styles.imagePreviewContainer,
+                {
+                  transform: [
+                    {
+                      scale: imagePreviewAnim.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [0.8, 1],
+                      }),
+                    },
+                  ],
+                },
+              ]}>
+              {/* Header */}
+              <View style={styles.imagePreviewHeader}>
+                <Text style={styles.imagePreviewTitle}>{previewImage.title}</Text>
+                <TouchableOpacity
+                  style={styles.imagePreviewCloseBtn}
+                  onPress={handleCloseImagePreview}>
+                  <Text style={styles.imagePreviewCloseBtnText}>✕</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Image */}
+              <View style={styles.imagePreviewContent}>
+                <Image
+                  source={{uri: previewImage.uri}}
+                  style={styles.imagePreviewImage}
+                  resizeMode="contain"
+                />
+              </View>
+
+              {/* Tap to close hint */}
+              <Text style={styles.imagePreviewHint}>Tap anywhere to close</Text>
+            </Animated.View>
+          </TouchableOpacity>
+        </Animated.View>
       </Modal>
     );
   };
@@ -1031,6 +1296,7 @@ const FingerCaptureScreen: React.FC<FingerCaptureScreenProps> = ({
       </ScrollView>
 
       {renderConfirmationModal()}
+      {renderImagePreviewModal()}
 
       {/* Reset Confirmation Modal */}
       <Modal
@@ -2097,6 +2363,519 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 14,
     fontFamily: FONTS.bold,
+  },
+  // Confirm Enrollment Modal Styles
+  confirmModalContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    width: '100%',
+    maxWidth: SCREEN_WIDTH * 0.92,
+    maxHeight: SCREEN_HEIGHT * 0.88,
+    overflow: 'hidden',
+    elevation: 24,
+    shadowColor: '#0F172A',
+    shadowOffset: {width: 0, height: 16},
+    shadowOpacity: 0.25,
+    shadowRadius: 32,
+  },
+  confirmModalCloseBtn: {
+    position: 'absolute',
+    top: 14,
+    right: 14,
+    width: 32,
+    height: 32,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 20,
+    elevation: 6,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 2},
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+  },
+  confirmModalCloseBtnText: {
+    fontSize: 14,
+    color: '#64748B',
+    fontWeight: '600',
+  },
+  confirmModalScrollView: {
+    maxHeight: SCREEN_HEIGHT * 0.75,
+  },
+  confirmModalScrollContent: {
+    paddingBottom: 12,
+  },
+  confirmModalHeader: {
+    padding: 16,
+    paddingTop: 20,
+    paddingBottom: 28,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    alignItems: 'center',
+    marginBottom: -16,
+  },
+  confirmModalIconCircle: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#22C55E',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 10,
+    elevation: 10,
+    shadowColor: '#22C55E',
+    shadowOffset: {width: 0, height: 6},
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    borderWidth: 3,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  confirmModalIcon: {
+    fontSize: 28,
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+  },
+  confirmModalTitle: {
+    fontSize: 20,
+    fontFamily: FONTS.bold,
+    color: '#FFFFFF',
+    marginBottom: 4,
+    textAlign: 'center',
+  },
+  confirmModalSubtitle: {
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.9)',
+    fontFamily: FONTS.regular,
+    textAlign: 'center',
+  },
+  confirmModalBadge: {
+    marginTop: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  confirmModalBadgeText: {
+    fontSize: 9,
+    fontFamily: FONTS.bold,
+    color: '#FFFFFF',
+    letterSpacing: 1.2,
+  },
+  confirmProfileContainer: {
+    alignItems: 'center',
+    marginTop: 6,
+    marginBottom: 12,
+  },
+  confirmProfileWrapper: {
+    position: 'relative',
+  },
+  confirmProfileRing: {
+    width: 76,
+    height: 76,
+    borderRadius: 38,
+    padding: 3,
+    elevation: 8,
+    shadowColor: '#6366F1',
+    shadowOffset: {width: 0, height: 4},
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+  },
+  confirmProfileInner: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 35,
+    backgroundColor: '#FFFFFF',
+    overflow: 'hidden',
+  },
+  confirmProfileImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 35,
+  },
+  confirmProfilePlaceholder: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 35,
+    backgroundColor: '#F1F5F9',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  confirmProfilePlaceholderText: {
+    fontSize: 32,
+  },
+  confirmProfileBadge: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#22C55E',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    elevation: 4,
+  },
+  confirmProfileBadgeIcon: {
+    fontSize: 11,
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+  },
+  confirmRegistrationCard: {
+    marginHorizontal: 14,
+    marginBottom: 10,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    padding: 14,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    elevation: 4,
+    shadowColor: '#6366F1',
+    shadowOffset: {width: 0, height: 3},
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(99, 102, 241, 0.08)',
+  },
+  confirmRegistrationItem: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 2,
+  },
+  confirmRegistrationDivider: {
+    width: 1,
+    backgroundColor: '#E2E8F0',
+    marginHorizontal: 14,
+  },
+  confirmRegistrationLabel: {
+    fontSize: 9,
+    color: '#94A3B8',
+    fontFamily: FONTS.bold,
+    marginBottom: 4,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
+  confirmRegistrationValue: {
+    fontSize: 14,
+    fontFamily: FONTS.bold,
+    color: '#1E293B',
+    textAlign: 'center',
+  },
+  confirmDetailsSection: {
+    marginHorizontal: 14,
+    marginBottom: 10,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    padding: 12,
+    elevation: 3,
+    shadowColor: '#64748B',
+    shadowOffset: {width: 0, height: 2},
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(100, 116, 139, 0.06)',
+  },
+  confirmDetailsSectionTitle: {
+    fontSize: 13,
+    fontFamily: FONTS.bold,
+    marginBottom: 8,
+    color: '#1E293B',
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
+  confirmDetailItem: {
+    flexDirection: 'row',
+    paddingVertical: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F8FAFC',
+    alignItems: 'center',
+  },
+  confirmDetailLabel: {
+    fontSize: 11,
+    color: '#64748B',
+    fontFamily: FONTS.semiBold,
+    width: '38%',
+  },
+  confirmDetailValue: {
+    fontSize: 11,
+    fontFamily: FONTS.bold,
+    color: '#1E293B',
+    width: '62%',
+  },
+  confirmDocumentsSection: {
+    marginHorizontal: 14,
+    marginBottom: 10,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    padding: 12,
+    elevation: 3,
+    shadowColor: '#64748B',
+    shadowOffset: {width: 0, height: 2},
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(100, 116, 139, 0.06)',
+  },
+  confirmDocumentImagesRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  confirmDocumentImageCard: {
+    alignItems: 'center',
+    position: 'relative',
+  },
+  confirmDocumentImageWrapper: {
+    width: 90,
+    height: 90,
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: '#F1F5F9',
+    elevation: 4,
+    shadowColor: '#6366F1',
+    shadowOffset: {width: 0, height: 3},
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    borderWidth: 2,
+    borderColor: '#E2E8F0',
+  },
+  confirmDocumentImage: {
+    width: '100%',
+    height: '100%',
+  },
+  confirmDocumentImageLabel: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 6,
+    gap: 4,
+  },
+  confirmDocumentImageIcon: {
+    fontSize: 12,
+  },
+  confirmDocumentImageText: {
+    fontSize: 10,
+    fontFamily: FONTS.semiBold,
+    color: '#475569',
+  },
+  confirmDocumentImageBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#22C55E',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    elevation: 3,
+  },
+  confirmDocumentImageBadgeText: {
+    fontSize: 10,
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+  },
+  confirmDocumentIdCard: {
+    width: '100%',
+    alignItems: 'center',
+    position: 'relative',
+    marginBottom: 14,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    padding: 12,
+    elevation: 4,
+    shadowColor: '#6366F1',
+    shadowOffset: {width: 0, height: 3},
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  confirmDocumentIdWrapper: {
+    width: '100%',
+    height: 160,
+    borderRadius: 10,
+    overflow: 'hidden',
+    backgroundColor: '#F1F5F9',
+  },
+  confirmDocumentIdImage: {
+    width: '100%',
+    height: '100%',
+  },
+  confirmDocumentTapHint: {
+    fontSize: 9,
+    fontFamily: FONTS.regular,
+    color: '#94A3B8',
+    marginLeft: 4,
+  },
+  confirmFingerprintsSection: {
+    marginHorizontal: 14,
+    marginBottom: 10,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    padding: 12,
+    elevation: 3,
+    shadowColor: '#64748B',
+    shadowOffset: {width: 0, height: 2},
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(100, 116, 139, 0.06)',
+  },
+  confirmHandSection: {
+    marginBottom: 10,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  confirmHandHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+  },
+  confirmHandEmoji: {
+    fontSize: 16,
+    marginRight: 6,
+  },
+  confirmHandLabel: {
+    fontSize: 14,
+    fontFamily: FONTS.semiBold,
+    color: '#334155',
+    flex: 1,
+  },
+  confirmHandCount: {
+    fontSize: 11,
+    fontFamily: FONTS.medium,
+    color: '#6366F1',
+    backgroundColor: '#EEF2FF',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  confirmHandFingersRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+  },
+  confirmModalButtons: {
+    flexDirection: 'row',
+    padding: 12,
+    gap: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+  },
+  confirmModalButtonCancel: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#E2E8F0',
+  },
+  confirmModalButtonCancelText: {
+    color: '#64748B',
+    fontSize: 14,
+    fontFamily: FONTS.semiBold,
+  },
+  confirmModalButtonConfirm: {
+    flex: 1.5,
+    borderRadius: 10,
+    overflow: 'hidden',
+    elevation: 3,
+    shadowColor: '#22C55E',
+    shadowOffset: {width: 0, height: 2},
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+  },
+  confirmModalButtonGradient: {
+    paddingVertical: 12,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  confirmModalButtonConfirmText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontFamily: FONTS.bold,
+  },
+  // Image Preview Modal Styles
+  imagePreviewOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  imagePreviewCloseArea: {
+    flex: 1,
+    width: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  imagePreviewContainer: {
+    width: SCREEN_WIDTH - 32,
+    maxHeight: SCREEN_HEIGHT - 100,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  imagePreviewHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#F8FAFC',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+  },
+  imagePreviewTitle: {
+    fontSize: 16,
+    fontFamily: FONTS.semiBold,
+    color: '#1E293B',
+  },
+  imagePreviewCloseBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#F1F5F9',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  imagePreviewCloseBtnText: {
+    fontSize: 16,
+    color: '#64748B',
+    fontWeight: 'bold',
+  },
+  imagePreviewContent: {
+    width: '100%',
+    height: SCREEN_HEIGHT * 0.6,
+    backgroundColor: '#000000',
+  },
+  imagePreviewImage: {
+    width: '100%',
+    height: '100%',
+  },
+  imagePreviewHint: {
+    textAlign: 'center',
+    fontSize: 12,
+    fontFamily: FONTS.regular,
+    color: '#94A3B8',
+    paddingVertical: 10,
+    backgroundColor: '#F8FAFC',
   },
 });
 

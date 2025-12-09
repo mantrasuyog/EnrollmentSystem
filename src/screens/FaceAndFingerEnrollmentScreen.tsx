@@ -132,7 +132,7 @@ const FaceAndFingerEnrollmentScreen = ({
   const navigation = useNavigation()
   const dispatch = useDispatch()
   const existingEnrolledImage = useSelector((state: RootState) => state.faceEnrollment.enrolledImageBase64) as string | null
-  const scanData = useSelector((state: RootState) => state.scan.scans[0]) // Get first scan data
+  const scanData = useSelector((state: RootState) => state.scan.scans[0])
   const fingerTemplatesForApi = useSelector(selectFingerTemplatesForApi)
 
   const [showReplaceModal, setShowReplaceModal] = useState(false)
@@ -275,7 +275,6 @@ const FaceAndFingerEnrollmentScreen = ({
 
       await apiService.post('/users/', apiRequestBody)
 
-      // User registration successful, now enroll biometrics
       const templateEnrollmentBody = {
         biometric_data: {
           biometrics: {
@@ -290,11 +289,9 @@ const FaceAndFingerEnrollmentScreen = ({
 
       await apiService.post('/biometric/enroll', templateEnrollmentBody)
 
-      // Clear existing enrollment status first, then set new value
       dispatch(resetUserEnrollment())
       dispatch(setUserEnrolled(true))
 
-      // Move to Success step in Dashboard (step 3)
       if (onProceedToNext) {
         onProceedToNext()
       }

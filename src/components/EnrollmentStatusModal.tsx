@@ -537,13 +537,6 @@ const EnrollmentStatusModal: React.FC<EnrollmentStatusModalProps> = ({
                 {enrollmentData.scanData?.Registration_Number || 'N/A'}
               </Text>
             </View>
-            <View style={styles.registrationDivider} />
-            <View style={styles.registrationItem}>
-              <Text style={styles.registrationLabel}>Centre Code</Text>
-              <Text style={styles.registrationValue}>
-                {enrollmentData.scanData?.Centre_Code || 'N/A'}
-              </Text>
-            </View>
           </View>
 
           <View style={styles.detailsSection}>

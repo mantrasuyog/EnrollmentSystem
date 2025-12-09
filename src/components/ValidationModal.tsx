@@ -25,6 +25,7 @@ interface ValidationModalProps {
   steps: ValidationStep[];
   buttonGradient: string[];
   numberBackgroundColor: string;
+  onRecapture?: () => void;
 }
 
 const ValidationModal: React.FC<ValidationModalProps> = memo(
@@ -38,6 +39,7 @@ const ValidationModal: React.FC<ValidationModalProps> = memo(
     steps,
     buttonGradient,
     numberBackgroundColor,
+    onRecapture,
   }) => {
     const scaleAnim = useRef(new Animated.Value(0)).current;
     const opacityAnim = useRef(new Animated.Value(0)).current;
@@ -131,17 +133,41 @@ const ValidationModal: React.FC<ValidationModalProps> = memo(
               ))}
             </View>
 
-            <TouchableOpacity
-              style={styles.validationButton}
-              onPress={handleClose}>
-              <LinearGradient
-                colors={buttonGradient}
-                start={{x: 0, y: 0}}
-                end={{x: 1, y: 1}}
-                style={styles.validationButtonGradient}>
-                <Text style={styles.validationButtonText}>Got it!</Text>
-              </LinearGradient>
-            </TouchableOpacity>
+            {onRecapture ? (
+              <View style={styles.buttonRow}>
+                <TouchableOpacity
+                  style={styles.closeButton}
+                  onPress={handleClose}>
+                  <Text style={styles.closeButtonText}>Close</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.recaptureButton}
+                  onPress={() => {
+                    handleClose();
+                    setTimeout(() => onRecapture(), 300);
+                  }}>
+                  <LinearGradient
+                    colors={['#6366F1', '#8B5CF6']}
+                    start={{x: 0, y: 0}}
+                    end={{x: 1, y: 1}}
+                    style={styles.recaptureButtonGradient}>
+                    <Text style={styles.recaptureButtonText}>Recapture</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <TouchableOpacity
+                style={styles.validationButton}
+                onPress={handleClose}>
+                <LinearGradient
+                  colors={buttonGradient}
+                  start={{x: 0, y: 0}}
+                  end={{x: 1, y: 1}}
+                  style={styles.validationButtonGradient}>
+                  <Text style={styles.validationButtonText}>Got it!</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            )}
           </Animated.View>
         </View>
       </Modal>
@@ -262,6 +288,49 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontFamily: 'Sen-Bold',
     letterSpacing: 0.5,
+  },
+  buttonRow: {
+    flexDirection: 'row',
+    width: '100%',
+    gap: 12,
+  },
+  closeButton: {
+    flex: 1,
+    borderRadius: 14,
+    borderWidth: 2,
+    borderColor: colors.borderGray,
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.white,
+  },
+  closeButtonText: {
+    color: colors.midGray,
+    fontSize: 15,
+    fontFamily: 'Sen-SemiBold',
+  },
+  recaptureButton: {
+    flex: 1.5,
+    borderRadius: 14,
+    overflow: 'hidden',
+    shadowColor: colors.purple1,
+    shadowOffset: {width: 0, height: 6},
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  recaptureButtonGradient: {
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 14,
+  },
+  recaptureButtonText: {
+    color: colors.white,
+    fontSize: 15,
+    fontFamily: 'Sen-Bold',
+    letterSpacing: 0.3,
   },
 });
 

@@ -27,7 +27,6 @@ import AnimatedScreen from '../components/AnimatedScreen';
 import ValidationModal from '../components/ValidationModal';
 import { colors } from '../common/colors';
 
-// Sub-steps for step 2 (Biometric Info)
 type BiometricSubStep = 'face' | 'finger';
 
 const DashboardScreen = () => {
@@ -112,8 +111,7 @@ const DashboardScreen = () => {
 
   const handleStepPress = useCallback(
     (step: number) => {
-      // If user is already enrolled, prevent going back to steps 1 and 2
-      if (userEnrolled && (step === 1 || step === 2)) {
+        if (userEnrolled && (step === 1 || step === 2)) {
         return;
       }
 
@@ -169,7 +167,6 @@ const DashboardScreen = () => {
       showFaceRequiredModalWithAnimation();
       return;
     }
-    // Reset biometric sub-step for next time
     setBiometricSubStep('face');
     setCurrentStep(3);
   }, [
@@ -179,7 +176,6 @@ const DashboardScreen = () => {
     showFaceRequiredModalWithAnimation,
   ]);
 
-  // Callback to move from face capture to finger capture within step 2
   const handleFaceCaptureComplete = useCallback(() => {
     setBiometricSubStep('finger');
   }, []);
@@ -189,7 +185,6 @@ const DashboardScreen = () => {
       case 1:
         return <DocumentUploadScreen onSubmitSuccess={handleMoveToStep2} />;
       case 2:
-        // Handle sub-steps within biometric enrollment
         if (biometricSubStep === 'face') {
           return (
             <Tech5FaceCaptureScreen
@@ -237,14 +232,12 @@ const DashboardScreen = () => {
         </AnimatedScreen>
       </View>
 
-      {}
       <ValidationModal
         visible={showFaceRequiredModal}
         onClose={closeFaceRequiredModal}
         {...faceRequiredModalData}
       />
 
-      {}
       <ValidationModal
         visible={showDocumentRequiredModal}
         onClose={closeDocumentRequiredModal}

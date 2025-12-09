@@ -54,21 +54,17 @@ const HomeScreen = ({ navigation }: Props) => {
   const [showEnrollmentModal, setShowEnrollmentModal] = useState(false);
   const [isCheckingEnrollment, setIsCheckingEnrollment] = useState(false);
 
-  // Get data from Redux
   const reduxScanData = useSelector((state: RootState) => state.scan.scans[0]);
   const reduxFaceImage = useSelector((state: RootState) => state.faceEnrollment.enrolledImageBase64);
   const reduxFingerTemplates = useSelector(selectFingerTemplates);
   const reduxFingerTemplatesForApi = useSelector(selectFingerTemplatesForApi);
   const isUserEnrolled = useSelector(selectUserEnrolled);
 
-  // Check if Redux has any data
   const hasReduxFingerprints = Object.values(reduxFingerTemplates).some(template => template !== null);
   const hasReduxData = !!(reduxScanData || reduxFaceImage || hasReduxFingerprints);
 
-  // Sync SQLite data to Redux on screen focus if Redux is empty
   useEffect(() => {
     const syncSQLiteToRedux = () => {
-      // If Redux already has data, no need to sync
       if (hasReduxData) {
         if (__DEV__) {
           console.log('Redux has data, skipping SQLite sync');
@@ -76,7 +72,6 @@ const HomeScreen = ({ navigation }: Props) => {
         return;
       }
 
-      // Check SQLite and sync to Redux if data exists
       const sqliteScan = getScanData();
       const sqliteFace = getFaceEnrollment();
       const sqliteFingers = getFingerTemplates();
@@ -89,7 +84,6 @@ const HomeScreen = ({ navigation }: Props) => {
         });
       }
 
-      // Sync scan data to Redux
       if (sqliteScan) {
         dispatch(addScanData({
           Registration_Number: sqliteScan.registration_number,
@@ -104,7 +98,6 @@ const HomeScreen = ({ navigation }: Props) => {
         }
       }
 
-      // Sync face enrollment to Redux
       if (sqliteFace) {
         dispatch(setEnrolledImage(sqliteFace));
         if (__DEV__) {
@@ -112,7 +105,6 @@ const HomeScreen = ({ navigation }: Props) => {
         }
       }
 
-      // Sync finger templates to Redux
       const fingerKeys: FingerKey[] = [
         'left_thumb', 'left_index', 'left_middle', 'left_ring', 'left_little',
         'right_thumb', 'right_index', 'right_middle', 'right_ring', 'right_little',
@@ -137,7 +129,6 @@ const HomeScreen = ({ navigation }: Props) => {
         }
       }
 
-      // Sync user enrollment status from SQLite
       const sqliteUserEnrolled = getUserEnrollmentStatus();
       if (sqliteUserEnrolled) {
         dispatch(setUserEnrolled(true));
@@ -149,7 +140,6 @@ const HomeScreen = ({ navigation }: Props) => {
 
     syncSQLiteToRedux();
 
-    // Also sync when screen comes into focus
     const unsubscribe = navigation.addListener('focus', syncSQLiteToRedux);
     return unsubscribe;
   }, [navigation, hasReduxData, dispatch]);
@@ -235,58 +225,46 @@ const HomeScreen = ({ navigation }: Props) => {
     }).start();
   }, []);
 
-  // Check if all enrollment data is complete (scan, face, and fingerprints)
   const hasCompleteEnrollmentData = !!(reduxScanData && reduxFaceImage && hasReduxFingerprints);
 
   const handleEnrollmentPress = useCallback(async () => {
-    // Case 1: User is already enrolled - call API to verify on server
     if (isUserEnrolled && hasCompleteEnrollmentData && reduxScanData?.Registration_Number) {
       setIsCheckingEnrollment(true);
       try {
         const response = await apiService.checkUserExists(reduxScanData.Registration_Number);
-        // Check if user exists on server (status is 'success' and no "does not exist" message)
         const userDoesNotExist = response.status !== 'success' ||
           (response.message && response.message.toLowerCase().includes('does not exist'));
 
         if (!userDoesNotExist) {
-          // User exists on server, show enrollment status modal
           setShowEnrollmentModal(true);
         } else {
-          // User doesn't exist on server - clear all data and proceed with new enrollment
           if (__DEV__) {
             console.log('User does not exist on server, clearing all data:', response.message);
           }
-          // Clear Redux data
           dispatch(clearScanData());
           dispatch(clearEnrolledImage());
           dispatch(clearFingerEnrollment());
           dispatch(resetUserEnrollment());
-          // Clear SQLite data
           clearAllEnrollmentData();
           (navigation as any).navigate('DashboardScreen');
         }
       } catch (error) {
-        // API call failed (e.g., 404 user not found), clear all data and proceed with new enrollment
         if (__DEV__) {
           console.log('User not found or API error, clearing all data and proceeding with new enrollment:', error);
         }
-        // Clear Redux data
         dispatch(clearScanData());
         dispatch(clearEnrolledImage());
         dispatch(clearFingerEnrollment());
         dispatch(resetUserEnrollment());
-        // Clear SQLite data
         clearAllEnrollmentData();
         (navigation as any).navigate('DashboardScreen');
       } finally {
         setIsCheckingEnrollment(false);
       }
     }
-    // Case 2: Has local enrollment data but not yet enrolled (pending) - show modal without API call
     else if (hasCompleteEnrollmentData) {
       setShowEnrollmentModal(true);
     }
-    // Case 3: No enrollment data - proceed to new enrollment
     else {
       (navigation as any).navigate('DashboardScreen');
     }
@@ -313,12 +291,10 @@ const HomeScreen = ({ navigation }: Props) => {
   }, []);
 
   const handleEnrollNew = useCallback(() => {
-    // Clear Redux data
     dispatch(clearScanData());
     dispatch(clearEnrolledImage());
     dispatch(clearFingerEnrollment());
     dispatch(resetUserEnrollment());
-    // Clear SQLite data
     clearAllEnrollmentData();
     setShowEnrollmentModal(false);
     (navigation as any).navigate('DashboardScreen');
@@ -368,20 +344,6 @@ const HomeScreen = ({ navigation }: Props) => {
             onPressOut={handlePressOutCard1}
           />
 
-          {/* <HomeActionCard
-            title="Identity Verification"
-            description="Authenticate your identity instantly using your enrolled biometric credentials with military-grade security"
-            icon="🛡️"
-            buttonText="Verify Now"
-            gradientColors={[colors.pink1, colors.pink2]}
-            fadeAnim={fadeAnim}
-            slideAnim={slideAnim2}
-            scaleAnim={scaleAnim2}
-            onPress={handleVerificationPress}
-            onPressIn={handlePressInCard2}
-            onPressOut={handlePressOutCard2}
-            iconAnimation={spin}
-          /> */}
         </View>
 
         <SecurityFooter
