@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "871950072890",
+    "project_id": "enrollmentsystem-1e0c5",
+    "storage_bucket": "enrollmentsystem-1e0c5.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:871950072890:android:6e06e04f1807458c2d8903",
+        "android_client_info": {
+          "package_name": "com.enrollmentsystem"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAMFlU4Nxvjhz0we8Z9wbyBgfBWZh5-uuk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

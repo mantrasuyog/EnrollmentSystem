@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { StatusBar, useColorScheme, ActivityIndicator, View, AppState } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
@@ -19,6 +19,7 @@ import Tech5FaceCaptureScreen from './src/screens/Tech5FaceCaptureScreen';
 import type { RootStackParamList } from './src/screens/HomeScreen';
 import { store, persistor } from './src/redux/store';
 import { initDatabase } from './src/services/database.service';
+import { initializeApiWithRemoteConfig, syncApiBaseUrlWithRedux } from './src/services/api.service';
 
 initDatabase();
 
@@ -26,6 +27,41 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 
 function App() {
   const isDarkMode = useColorScheme() === 'dark';
+  const [isRemoteConfigReady, setIsRemoteConfigReady] = useState(false);
+
+  useEffect(() => {
+    // Initialize Firebase Remote Config and fetch API base URL
+    const initRemoteConfig = async () => {
+      try {
+        const baseUrl = await initializeApiWithRemoteConfig();
+        console.log('Firebase Remote Config initialized successfully');
+        console.log('API Base URL from Remote Config (ES_001):', baseUrl);
+      } catch (error) {
+        console.error('Failed to initialize Remote Config:', error);
+      } finally {
+        setIsRemoteConfigReady(true);
+      }
+    };
+
+    initRemoteConfig();
+  }, []);
+
+  // Sync API base URL with Redux on app coming to foreground
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextAppState) => {
+      if (nextAppState === 'active') {
+        // Sync API base URL with Redux state when app becomes active
+        syncApiBaseUrlWithRedux();
+        if (__DEV__) {
+          console.log('App active - synced API base URL with Redux');
+        }
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, []);
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (nextAppState) => {

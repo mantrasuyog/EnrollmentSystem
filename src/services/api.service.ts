@@ -1,7 +1,10 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse, AxiosError } from 'axios'
 import { API_CONFIG, API_ENDPOINTS } from '../config/api.config'
+import remoteConfigService from './remoteConfig.service'
+import { store } from '../redux/store'
+import { setApiBaseUrl } from '../redux/remoteConfigSlice'
 
-const apiClient: AxiosInstance = axios.create({
+let apiClient: AxiosInstance = axios.create({
   baseURL: API_CONFIG.BASE_URL,
   timeout: API_CONFIG.TIMEOUT,
   headers: {
@@ -9,6 +12,55 @@ const apiClient: AxiosInstance = axios.create({
     Accept: 'application/json',
   },
 })
+
+// Function to update the base URL from Remote Config
+export const updateApiBaseUrl = (newBaseUrl: string): void => {
+  apiClient.defaults.baseURL = newBaseUrl
+  console.log('API Base URL updated to:', newBaseUrl)
+}
+
+// Function to initialize API with Remote Config base URL and store in Redux
+export const initializeApiWithRemoteConfig = async (): Promise<string> => {
+  try {
+    await remoteConfigService.initialize()
+
+    // Get all config values (for logging)
+    remoteConfigService.getAllConfig()
+
+    // Get the API base URL from Remote Config (ES_001 key)
+    const baseUrl = remoteConfigService.getApiBaseUrl()
+
+    // Store in Redux
+    store.dispatch(setApiBaseUrl(baseUrl))
+
+    // Update axios base URL
+    updateApiBaseUrl(baseUrl)
+
+    console.log('API initialized with Remote Config. Base URL:', baseUrl)
+    return baseUrl
+  } catch (error) {
+    console.error('Failed to initialize API with Remote Config, using default:', error)
+
+    // Use default from config
+    const defaultUrl = API_CONFIG.BASE_URL
+    store.dispatch(setApiBaseUrl(defaultUrl))
+    updateApiBaseUrl(defaultUrl)
+
+    return defaultUrl
+  }
+}
+
+// Function to get current base URL from Redux
+export const getApiBaseUrlFromRedux = (): string => {
+  const state = store.getState()
+  return state.remoteConfig?.apiBaseUrl || API_CONFIG.BASE_URL
+}
+
+// Function to sync API client with Redux state
+export const syncApiBaseUrlWithRedux = (): void => {
+  const baseUrl = getApiBaseUrlFromRedux()
+  updateApiBaseUrl(baseUrl)
+}
 
 apiClient.interceptors.request.use(
   (config) => {

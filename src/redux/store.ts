@@ -14,6 +14,7 @@ import scanReducer from "./scanSlice";
 import faceEnrollmentReducer from "./faceEnrollmentSlice";
 import fingerEnrollmentReducer from "./fingerEnrollmentSlice";
 import userEnrollmentReducer from "./userEnrollmentSlice";
+import remoteConfigReducer from "./remoteConfigSlice";
 import {
   clearAndSaveScanData,
   clearScanDataFromDb,
@@ -30,7 +31,7 @@ const persistConfig = {
   key: "root",
   version: 1,
   storage: AsyncStorage,
-  whitelist: ["scan", "faceEnrollment", "fingerEnrollment", "userEnrollment"],
+  whitelist: ["scan", "faceEnrollment", "fingerEnrollment", "userEnrollment", "remoteConfig"],
   timeout: 10000, // Increase timeout to 10 seconds for large data
   debug: __DEV__, // Enable debug logs in development
   writeFailSafe: true, // Ensures writes complete even on app kill
@@ -208,6 +209,7 @@ const rootReducer = combineReducers({
   faceEnrollment: faceEnrollmentReducer,
   fingerEnrollment: fingerEnrollmentReducer,
   userEnrollment: userEnrollmentReducer,
+  remoteConfig: remoteConfigReducer,
 });
 
 const persistedReducer = persistReducer(persistConfig, rootReducer);
