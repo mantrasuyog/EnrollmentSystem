@@ -9,8 +9,11 @@ import {
   SafeAreaView,
   Dimensions,
   ActivityIndicator,
+  ScrollView,
 } from 'react-native';
 import { apiService } from '../services/api.service';
+import PermissionRequestModal from '../components/PermissionRequestModal';
+import InfoSection from '../components/InfoSection';
 
 const { width: screenWidth } = Dimensions.get('window');
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -316,41 +319,51 @@ const HomeScreen = ({ navigation }: Props) => {
         backgroundColor={colors.bgLight}
         barStyle="dark-content"
       />
-      <View style={styles.container}>
-        <HeroSection
-          fadeAnim={fadeAnim}
-          pulseAnim={pulseAnim}
-          isDarkMode={isDarkMode}
-        />
-
-        <Animated.View style={{ opacity: fadeAnim }}>
-          <Text style={[styles.optionsTitle, isDarkMode && styles.textDark]}>
-            Choose an option to continue
-          </Text>
-        </Animated.View>
-
-        <View style={styles.cardsContainer}>
-          <HomeActionCard
-            title="New Enrollment"
-            description="Register your fingerprint, face, or iris data securely in our encrypted database for seamless authentication"
-            icon="✍️"
-            buttonText="Get Started"
-            gradientColors={[colors.purple1, colors.purple2]}
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.container}>
+          <HeroSection
             fadeAnim={fadeAnim}
-            slideAnim={slideAnim1}
-            scaleAnim={scaleAnim1}
-            onPress={handleEnrollmentPress}
-            onPressIn={handlePressInCard1}
-            onPressOut={handlePressOutCard1}
+            pulseAnim={pulseAnim}
+            isDarkMode={isDarkMode}
           />
 
-        </View>
+          <Animated.View style={{ opacity: fadeAnim }}>
+            <Text style={[styles.optionsTitle, isDarkMode && styles.textDark]}>
+              Choose an option to continue
+            </Text>
+          </Animated.View>
 
-        <SecurityFooter
-          fadeAnim={fadeAnim}
-          isDarkMode={isDarkMode}
-        />
-      </View>
+          <View style={styles.cardsContainer}>
+            <HomeActionCard
+              title="New Enrollment"
+              description="Register your fingerprint, face, or iris data securely in our encrypted database for seamless authentication"
+              icon="✍️"
+              buttonText="Get Started"
+              gradientColors={[colors.purple1, colors.purple2]}
+              fadeAnim={fadeAnim}
+              slideAnim={slideAnim1}
+              scaleAnim={scaleAnim1}
+              onPress={handleEnrollmentPress}
+              onPressIn={handlePressInCard1}
+              onPressOut={handlePressOutCard1}
+            />
+          </View>
+
+          <InfoSection
+            isDarkMode={isDarkMode}
+            fadeAnim={fadeAnim}
+          />
+
+          <SecurityFooter
+            fadeAnim={fadeAnim}
+            isDarkMode={isDarkMode}
+          />
+        </View>
+      </ScrollView>
 
       <EnrollmentStatusModal
         visible={showEnrollmentModal}
@@ -381,6 +394,19 @@ const HomeScreen = ({ navigation }: Props) => {
           </View>
         </View>
       )}
+
+      <PermissionRequestModal
+        onPermissionsGranted={() => {
+          if (__DEV__) {
+            console.log('All permissions granted');
+          }
+        }}
+        onSkip={() => {
+          if (__DEV__) {
+            console.log('Permission request skipped');
+          }
+        }}
+      />
     </SafeAreaView>
   );
 };
@@ -392,6 +418,12 @@ const styles = StyleSheet.create({
   },
   safeAreaDark: {
     backgroundColor: colors.bgDark,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
   },
   container: {
     flex: 1,

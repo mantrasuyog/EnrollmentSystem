@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Terms of Use for Enrollment System - Biometric Enrollment Verification Application">
+    <meta name="keywords" content="Enrollment System, Terms of Use, Terms and Conditions">
+    <title>Terms of Use - Enrollment System</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            line-height: 1.7;
+            color: #1a1a2e;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        .card {
+            background: #ffffff;
+            border-radius: 24px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #1a1f3d 0%, #2d3561 100%);
+            padding: 40px 30px;
+            text-align: center;
+        }
+
+        .logo {
+            width: 80px;
+            height: 80px;
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+            font-size: 40px;
+        }
+
+        .header h1 {
+            color: #ffffff;
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .header .app-name {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 16px;
+            font-weight: 500;
+        }
+
+        .header .last-updated {
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 13px;
+            margin-top: 12px;
+        }
+
+        .content {
+            padding: 40px 30px;
+        }
+
+        .intro {
+            background: #f8f9ff;
+            border-left: 4px solid #667eea;
+            padding: 20px;
+            border-radius: 0 12px 12px 0;
+            margin-bottom: 30px;
+        }
+
+        .intro p {
+            color: #4a5568;
+            font-size: 15px;
+        }
+
+        .section {
+            margin-bottom: 32px;
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .section-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 14px;
+            font-size: 18px;
+        }
+
+        .section h2 {
+            color: #1a1a2e;
+            font-size: 20px;
+            font-weight: 700;
+        }
+
+        .section p {
+            color: #4a5568;
+            font-size: 15px;
+            margin-bottom: 12px;
+        }
+
+        .section ul {
+            color: #4a5568;
+            font-size: 15px;
+            padding-left: 24px;
+            margin-bottom: 12px;
+        }
+
+        .section li {
+            margin-bottom: 8px;
+        }
+
+        .highlight-box {
+            background: #fff5f5;
+            border: 1px solid #feb2b2;
+            border-radius: 12px;
+            padding: 16px 20px;
+            margin: 16px 0;
+        }
+
+        .highlight-box.info {
+            background: #ebf8ff;
+            border-color: #90cdf4;
+        }
+
+        .highlight-box.warning {
+            background: #fffaf0;
+            border-color: #fbd38d;
+        }
+
+        .highlight-box p {
+            margin: 0;
+            font-size: 14px;
+        }
+
+        .divider {
+            height: 1px;
+            background: linear-gradient(90deg, transparent, #e2e8f0, transparent);
+            margin: 32px 0;
+        }
+
+        .contact-section {
+            background: #f8f9ff;
+            border-radius: 16px;
+            padding: 24px;
+            text-align: center;
+        }
+
+        .contact-section h3 {
+            color: #1a1a2e;
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+
+        .contact-section p {
+            color: #4a5568;
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+
+        .contact-section a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .contact-section a:hover {
+            text-decoration: underline;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 24px 30px;
+            background: #f7fafc;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        .footer p {
+            color: #718096;
+            font-size: 13px;
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 20px 12px;
+            }
+
+            .header {
+                padding: 30px 20px;
+            }
+
+            .header h1 {
+                font-size: 24px;
+            }
+
+            .content {
+                padding: 30px 20px;
+            }
+
+            .section h2 {
+                font-size: 18px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <div class="header">
+                <div class="logo">📋</div>
+                <h1>Terms of Use</h1>
+                <p class="app-name">Enrollment System</p>
+                <p class="last-updated">Last Updated: December 2024</p>
+            </div>
+
+            <div class="content">
+                <div class="intro">
+                    <p>
+                        Please read these Terms of Use carefully before using the <strong>Enrollment System</strong> application. By accessing or using our application, you agree to be bound by these terms.
+                    </p>
+                </div>
+
+                <div class="section">
+                    <div class="section-header">
+                        <div class="section-icon">✅</div>
+                        <h2>1. Acceptance of Terms</h2>
+                    </div>
+                    <p>By downloading, installing, or using the Enrollment System application, you acknowledge that you have read, understood, and agree to be bound by these Terms of Use.</p>
+                    <div class="highlight-box info">
+                        <p><strong>Important:</strong> If you do not agree to these terms, please do not use the application.</p>
+                    </div>
+                </div>
+
+                <div class="divider"></div>
+
+                <div class="section">
+                    <div class="section-header">
+                        <div class="section-icon">🎯</div>
+                        <h2>2. Authorized Use</h2>
+                    </div>
+                    <p>The Enrollment System application is intended exclusively for:</p>
+                    <ul>
+                        <li>Authorized enrollment verification processes</li>
+                        <li>Identity verification using biometric data</li>
+                        <li>Document scanning and verification</li>
+                        <li>Legitimate business purposes as defined by your organization</li>
+                    </ul>
+                    <div class="highlight-box">
+                        <p><strong>Prohibited:</strong> Unauthorized access, reverse engineering, or any misuse of the application is strictly prohibited and may result in legal action.</p>
+                    </div>
+                </div>
+
+                <div class="divider"></div>
+
+                <div class="section">
+                    <div class="section-header">
+                        <div class="section-icon">👤</div>
+                        <h2>3. User Responsibilities</h2>
+                    </div>
+                    <p>As a user of the Enrollment System, you agree to:</p>
+                    <ul>
+                        <li>Provide accurate and truthful information during enrollment</li>
+                        <li>Maintain the confidentiality of your enrollment credentials</li>
+                        <li>Use the application only for its intended purpose</li>
+                        <li>Comply with all applicable laws and regulations</li>
+                        <li>Report any security vulnerabilities or unauthorized access</li>
+                        <li>Not attempt to circumvent security measures</li>
+                    </ul>
+                </div>
+
+                <div class="divider"></div>
+
+                <div class="section">
+                    <div class="section-header">
+                        <div class="section-icon">🔐</div>
+                        <h2>4. Biometric Data Consent</h2>
+                    </div>
+                    <p>By proceeding with the enrollment process, you explicitly consent to:</p>
+                    <ul>
+                        <li>Collection of your biometric data (facial images and fingerprints)</li>
+                        <li>Processing of biometric data for identity verification</li>
+                        <li>Secure storage of biometric templates</li>
+                        <li>Use of biometric data as described in our Privacy Policy</li>
+                    </ul>
+                    <div class="highlight-box warning">
+                        <p><strong>Note:</strong> You may withdraw consent at any time by contacting us, but this will affect your ability to use the enrollment services.</p>
+                    </div>
+                </div>
+
+                <div class="divider"></div>
+
+                <div class="section">
+                    <div class="section-header">
+                        <div class="section-icon">💡</div>
+                        <h2>5. Intellectual Property</h2>
+                    </div>
+                    <p>All intellectual property rights in the Enrollment System application belong to us or our licensors:</p>
+                    <ul>
+                        <li>Software code, algorithms, and technical implementations</li>
+                        <li>User interface designs and graphics</li>
+                        <li>Trademarks, logos, and brand elements</li>
+                        <li>Documentation and training materials</li>
+                    </ul>
+                    <p>You are granted a limited, non-exclusive license to use the application for its intended purpose only.</p>
+                </div>
+
+                <div class="divider"></div>
+
+                <div class="section">
+                    <div class="section-header">
+                        <div class="section-icon">⚠️</div>
+                        <h2>6. Limitation of Liability</h2>
+                    </div>
+                    <p>To the maximum extent permitted by applicable law:</p>
+                    <ul>
+                        <li>We are not liable for any indirect, incidental, or consequential damages</li>
+                        <li>We do not guarantee uninterrupted or error-free operation</li>
+                        <li>Our total liability is limited to the amount paid for the service</li>
+                        <li>We are not responsible for third-party services or integrations</li>
+                    </ul>
+                </div>
+
+                <div class="divider"></div>
+
+                <div class="section">
+                    <div class="section-header">
+                        <div class="section-icon">🛡️</div>
+                        <h2>7. Disclaimer of Warranties</h2>
+                    </div>
+                    <p>The application is provided "as is" and "as available" without warranties of any kind, either express or implied, including but not limited to:</p>
+                    <ul>
+                        <li>Merchantability or fitness for a particular purpose</li>
+                        <li>Non-infringement of third-party rights</li>
+                        <li>Accuracy or reliability of results</li>
+                        <li>Availability or security of services</li>
+                    </ul>
+                </div>
+
+                <div class="divider"></div>
+
+                <div class="section">
+                    <div class="section-header">
+                        <div class="section-icon">🚫</div>
+                        <h2>8. Termination</h2>
+                    </div>
+                    <p>We reserve the right to:</p>
+                    <ul>
+                        <li>Suspend or terminate your access for violation of these terms</li>
+                        <li>Modify or discontinue the service at any time</li>
+                        <li>Remove or disable access to content that violates these terms</li>
+                    </ul>
+                    <p>Upon termination, your right to use the application will cease immediately.</p>
+                </div>
+
+                <div class="divider"></div>
+
+                <div class="section">
+                    <div class="section-header">
+                        <div class="section-icon">⚖️</div>
+                        <h2>9. Governing Law</h2>
+                    </div>
+                    <p>These Terms of Use shall be governed by and construed in accordance with applicable laws. Any disputes arising from these terms shall be resolved through appropriate legal channels.</p>
+                </div>
+
+                <div class="divider"></div>
+
+                <div class="section">
+                    <div class="section-header">
+                        <div class="section-icon">🔄</div>
+                        <h2>10. Changes to Terms</h2>
+                    </div>
+                    <p>We may update these Terms of Use from time to time:</p>
+                    <ul>
+                        <li>Significant changes will be communicated through the application</li>
+                        <li>The "Last Updated" date will be revised accordingly</li>
+                        <li>Continued use constitutes acceptance of modified terms</li>
+                    </ul>
+                </div>
+
+                <div class="divider"></div>
+
+                <div class="contact-section">
+                    <h3>📧 Contact Us</h3>
+                    <p>If you have any questions about these Terms of Use, please contact us:</p>
+                    <p><a href="mailto:support@enrollmentsystem.com">support@enrollmentsystem.com</a></p>
+                </div>
+            </div>
+
+            <div class="footer">
+                <p>© 2024 Enrollment System. All rights reserved.</p>
+                <p style="margin-top: 8px;">
+                    <a href="privacy-policy.html" style="color: #667eea; text-decoration: none;">Privacy Policy</a>
+                </p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

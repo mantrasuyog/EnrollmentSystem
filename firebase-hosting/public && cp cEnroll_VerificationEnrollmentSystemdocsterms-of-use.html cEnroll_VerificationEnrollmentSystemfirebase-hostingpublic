@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Privacy Policy for Enrollment System - Biometric Enrollment Verification Application">
+    <meta name="keywords" content="Enrollment System, Privacy Policy, Biometric Data, Security">
+    <title>Privacy Policy - Enrollment System</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            line-height: 1.7;
+            color: #1a1a2e;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        .card {
+            background: #ffffff;
+            border-radius: 24px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #1a1f3d 0%, #2d3561 100%);
+            padding: 40px 30px;
+            text-align: center;
+        }
+
+        .logo {
+            width: 80px;
+            height: 80px;
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+            font-size: 40px;
+        }
+
+        .header h1 {
+            color: #ffffff;
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .header .app-name {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 16px;
+            font-weight: 500;
+        }
+
+        .header .last-updated {
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 13px;
+            margin-top: 12px;
+        }
+
+        .content {
+            padding: 40px 30px;
+        }
+
+        .intro {
+            background: #f8f9ff;
+            border-left: 4px solid #667eea;
+            padding: 20px;
+            border-radius: 0 12px 12px 0;
+            margin-bottom: 30px;
+        }
+
+        .intro p {
+            color: #4a5568;
+            font-size: 15px;
+        }
+
+        .section {
+            margin-bottom: 32px;
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .section-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 14px;
+            font-size: 18px;
+        }
+
+        .section h2 {
+            color: #1a1a2e;
+            font-size: 20px;
+            font-weight: 700;
+        }
+
+        .section p {
+            color: #4a5568;
+            font-size: 15px;
+            margin-bottom: 12px;
+        }
+
+        .section ul {
+            color: #4a5568;
+            font-size: 15px;
+            padding-left: 24px;
+            margin-bottom: 12px;
+        }
+
+        .section li {
+            margin-bottom: 8px;
+        }
+
+        .highlight-box {
+            background: #fff5f5;
+            border: 1px solid #feb2b2;
+            border-radius: 12px;
+            padding: 16px 20px;
+            margin: 16px 0;
+        }
+
+        .highlight-box.info {
+            background: #ebf8ff;
+            border-color: #90cdf4;
+        }
+
+        .highlight-box.success {
+            background: #f0fff4;
+            border-color: #9ae6b4;
+        }
+
+        .highlight-box p {
+            margin: 0;
+            font-size: 14px;
+        }
+
+        .divider {
+            height: 1px;
+            background: linear-gradient(90deg, transparent, #e2e8f0, transparent);
+            margin: 32px 0;
+        }
+
+        .contact-section {
+            background: #f8f9ff;
+            border-radius: 16px;
+            padding: 24px;
+            text-align: center;
+        }
+
+        .contact-section h3 {
+            color: #1a1a2e;
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+
+        .contact-section p {
+            color: #4a5568;
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+
+        .contact-section a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .contact-section a:hover {
+            text-decoration: underline;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 24px 30px;
+            background: #f7fafc;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        .footer p {
+            color: #718096;
+            font-size: 13px;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-top: 12px;
+        }
+
+        .badge-icon {
+            margin-right: 6px;
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 20px 12px;
+            }
+
+            .header {
+                padding: 30px 20px;
+            }
+
+            .header h1 {
+                font-size: 24px;
+            }
+
+            .content {
+                padding: 30px 20px;
+            }
+
+            .section h2 {
+                font-size: 18px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <div class="header">
+                <div class="logo">🔐</div>
+                <h1>Privacy Policy</h1>
+                <p class="app-name">Enrollment System</p>
+                <p class="last-updated">Last Updated: December 2024</p>
+                <div class="badge">
+                    <span class="badge-icon">🛡️</span>
+                    ISO 27001 Certified
+                </div>
+            </div>
+
+            <div class="content">
+                <div class="intro">
+                    <p>
+                        <strong>Enrollment System</strong> is committed to protecting your privacy. This Privacy Policy explains how we collect, use, store, and protect your personal and biometric information when you use our application.
+                    </p>
+                </div>
+
+                <div class="section">
+                    <div class="section-header">
+                        <div class="section-icon">📊</div>
+                        <h2>1. Data Collection</h2>
+                    </div>
+                    <p>We collect the following types of information to provide our enrollment verification services:</p>
+                    <ul>
+                        <li><strong>Biometric Data:</strong> Facial images and fingerprint templates for identity verification</li>
+                        <li><strong>Personal Information:</strong> Name, date of birth, gender, and document details</li>
+                        <li><strong>Document Data:</strong> Scanned document images for verification purposes</li>
+                        <li><strong>Device Information:</strong> Basic device identifiers for security purposes</li>
+                    </ul>
+                    <div class="highlight-box info">
+                        <p><strong>Note:</strong> We only collect data that is necessary for the enrollment verification process. No additional data is collected without your explicit consent.</p>
+                    </div>
+                </div>
+
+                <div class="divider"></div>
+
+                <div class="section">
+                    <div class="section-header">
+                        <div class="section-icon">🎯</div>
+                        <h2>2. Data Usage</h2>
+                    </div>
+                    <p>Your data is used exclusively for the following purposes:</p>
+                    <ul>
+                        <li>Identity verification during the enrollment process</li>
+                        <li>Biometric matching and authentication</li>
+                        <li>Compliance with regulatory requirements</li>
+                        <li>Improving our verification accuracy and services</li>
+                    </ul>
+                    <div class="highlight-box success">
+                        <p><strong>We DO NOT:</strong> Share your personal or biometric data with third parties for marketing purposes, sell your data, or use it for any purpose other than enrollment verification.</p>
+                    </div>
+                </div>
+
+                <div class="divider"></div>
+
+                <div class="section">
+                    <div class="section-header">
+                        <div class="section-icon">🔒</div>
+                        <h2>3. Data Storage & Security</h2>
+                    </div>
+                    <p>We implement industry-leading security measures to protect your data:</p>
+                    <ul>
+                        <li><strong>Encryption:</strong> All biometric data is encrypted using AES-256 encryption</li>
+                        <li><strong>Secure Transmission:</strong> Data is transmitted over secure HTTPS connections</li>
+                        <li><strong>Access Controls:</strong> Strict access controls limit who can access your data</li>
+                        <li><strong>Regular Audits:</strong> Security audits are conducted regularly to ensure compliance</li>
+                    </ul>
+                </div>
+
+                <div class="divider"></div>
+
+                <div class="section">
+                    <div class="section-header">
+                        <div class="section-icon">⏱️</div>
+                        <h2>4. Data Retention</h2>
+                    </div>
+                    <p>We retain your data only for as long as necessary:</p>
+                    <ul>
+                        <li>Biometric data is retained only for the duration required for enrollment verification</li>
+                        <li>Personal data is kept in accordance with applicable legal requirements</li>
+                        <li>You may request deletion of your data at any time (subject to legal obligations)</li>
+                    </ul>
+                </div>
+
+                <div class="divider"></div>
+
+                <div class="section">
+                    <div class="section-header">
+                        <div class="section-icon">✅</div>
+                        <h2>5. Your Rights</h2>
+                    </div>
+                    <p>You have the following rights regarding your personal data:</p>
+                    <ul>
+                        <li><strong>Access:</strong> Request a copy of your personal data we hold</li>
+                        <li><strong>Correction:</strong> Request correction of inaccurate data</li>
+                        <li><strong>Deletion:</strong> Request deletion of your data (right to be forgotten)</li>
+                        <li><strong>Portability:</strong> Request transfer of your data in a portable format</li>
+                        <li><strong>Objection:</strong> Object to certain processing of your data</li>
+                    </ul>
+                </div>
+
+                <div class="divider"></div>
+
+                <div class="section">
+                    <div class="section-header">
+                        <div class="section-icon">🤝</div>
+                        <h2>6. Biometric Consent</h2>
+                    </div>
+                    <p>By using the Enrollment System application and proceeding with the enrollment process, you explicitly consent to:</p>
+                    <ul>
+                        <li>Collection of your biometric data (facial images and fingerprints)</li>
+                        <li>Processing of this data for identity verification purposes</li>
+                        <li>Storage of this data in accordance with our security measures</li>
+                    </ul>
+                    <div class="highlight-box">
+                        <p><strong>Important:</strong> You may withdraw your consent at any time by contacting us. However, this may affect your ability to use the enrollment services.</p>
+                    </div>
+                </div>
+
+                <div class="divider"></div>
+
+                <div class="section">
+                    <div class="section-header">
+                        <div class="section-icon">🔄</div>
+                        <h2>7. Policy Updates</h2>
+                    </div>
+                    <p>We may update this Privacy Policy from time to time. When we make significant changes:</p>
+                    <ul>
+                        <li>We will notify you through the application</li>
+                        <li>The "Last Updated" date will be revised</li>
+                        <li>Continued use of the app constitutes acceptance of changes</li>
+                    </ul>
+                </div>
+
+                <div class="divider"></div>
+
+                <div class="contact-section">
+                    <h3>📧 Contact Us</h3>
+                    <p>If you have any questions about this Privacy Policy or wish to exercise your rights, please contact us:</p>
+                    <p><a href="mailto:support@enrollmentsystem.com">support@enrollmentsystem.com</a></p>
+                    <p style="margin-top: 16px; font-size: 13px; color: #718096;">
+                        We aim to respond to all inquiries within 48 hours.
+                    </p>
+                </div>
+            </div>
+
+            <div class="footer">
+                <p>© 2024 Enrollment System. All rights reserved.</p>
+                <p style="margin-top: 8px;">
+                    <a href="terms-of-use.html" style="color: #667eea; text-decoration: none;">Terms of Use</a>
+                </p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
